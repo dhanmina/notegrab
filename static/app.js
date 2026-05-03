@@ -28,9 +28,11 @@ function isMultiMode() {
 }
 
 let titleReady = false;
-const threads = 8;
+let threads = 8;
 let driveExt = "";
 let titleTimer = null;
+
+const GODMODE = MAX_SLOTS >= 999;
 
 const activeDownloads = new Set();
 const completedDownloads = new Set();
@@ -45,6 +47,20 @@ const urlError = document.getElementById("url-error");
 const urlWarn = document.getElementById("url-warn");
 const bottomRow = document.getElementById("bottom-row");
 const nameField = document.getElementById("name-field");
+const threadStepper = document.getElementById("thread-stepper");
+const tVal = document.getElementById("t-val");
+
+function enableGodmode() {
+  threadStepper.style.display = "";
+  document.getElementById("t-minus").addEventListener("click", () => {
+    if (threads > 1) { threads--; tVal.textContent = threads; }
+  });
+  document.getElementById("t-plus").addEventListener("click", () => {
+    if (threads < 16) { threads++; tVal.textContent = threads; }
+  });
+}
+
+if (GODMODE) enableGodmode();
 
 function syncBtn() {
   const urls = getValidUrls(urlEl.value);
@@ -584,6 +600,7 @@ async function submitKey() {
       keyBtn.classList.remove("active");
       keyBtn.classList.add("unlocked");
       keyBtn.disabled = true;
+      if (data.slots >= 999) enableGodmode();
       closeKeyModal();
     } else {
       keyStatus.style.color = "var(--red)";

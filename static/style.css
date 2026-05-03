@@ -270,7 +270,57 @@ body {
 .url-warn.on { display: block; }
 
 .bottom-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   margin-bottom: 10px;
+}
+
+.bottom-row .field { flex: 1; }
+
+.stepper {
+  display: flex;
+  align-items: center;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  overflow: hidden;
+  height: 44px;
+  user-select: none;
+  flex-shrink: 0;
+}
+
+.step-btn {
+  width: 36px;
+  height: 100%;
+  min-height: 44px;
+  background: none;
+  border: none;
+  color: var(--sub);
+  font-size: 1rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.1s, background 0.1s;
+  flex-shrink: 0;
+}
+.step-btn:hover  { color: var(--text); background: var(--border); }
+.step-btn:active { background: var(--border-hi); }
+
+.step-val {
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  color: var(--text);
+  min-width: 30px;
+  text-align: center;
+}
+
+.step-label {
+  font-size: 0.62rem;
+  color: var(--dim);
+  padding: 0 8px 0 2px;
+  white-space: nowrap;
 }
 
 .field { position: relative; }
