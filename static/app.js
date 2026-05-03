@@ -23,7 +23,8 @@ let threads    = 4;
 let driveExt   = '';
 let titleTimer = null;
 
-const activeDownloads = new Set();
+const activeDownloads    = new Set();
+const completedDownloads = new Set();
 
 const urlEl     = document.getElementById('url');
 const dlBtn     = document.getElementById('dl-btn');
@@ -222,9 +223,10 @@ function trackJob(jobId, card, driveId) {
   let lb = 0, lt = t0, total = 0, finished = false;
   let es;
 
-  function finish() {
+  function finish(succeeded = false) {
     finished = true;
     activeDownloads.delete(driveId);
+    if (succeeded) completedDownloads.add(driveId);
   }
 
   function markError(message) {
@@ -285,7 +287,7 @@ function trackJob(jobId, card, driveId) {
     },
     done(msg) {
       es.close();
-      finish();
+      finish(true);
       refs.pbar.className   = 'card-pbar-fill';
       refs.pbar.style.width = '100%';
       refs.tag.textContent  = 'Done';
@@ -331,8 +333,10 @@ function trackJob(jobId, card, driveId) {
 }
 
 function dismissCard(jobId) {
+  const card = document.getElementById(`card-${jobId}`);
+  completedDownloads.delete(card?.dataset.driveId);
   fetch(`/delete/${jobId}`, { method: 'DELETE' });
-  document.getElementById(`card-${jobId}`)?.remove();
+  card?.remove();
 }
 
 function resetForm() {
@@ -356,10 +360,20 @@ document.getElementById('dl-form').addEventListener('submit', async e => {
   const allUrls = getValidUrls(urlEl.value);
   if (!allUrls.length) return;
 
-  const dupes = allUrls.filter(u => activeDownloads.has(extractDriveId(u)));
-  const urls  = allUrls.filter(u => !activeDownloads.has(extractDriveId(u)));
+  const isDupe = u => activeDownloads.has(extractDriveId(u)) || completedDownloads.has(extractDriveId(u));
+  const dupes  = allUrls.filter(u => isDupe(u));
+  const urls   = allUrls.filter(u => !isDupe(u));
 
-  setUrlWarn(dupes.length ? `${dupes.length} duplicate${dupes.length > 1 ? 's' : ''} skipped — already downloading` : '');
+  if (dupes.length) {
+    const downloading = dupes.filter(u => activeDownloads.has(extractDriveId(u))).length;
+    const downloaded  = dupes.filter(u => completedDownloads.has(extractDriveId(u))).length;
+    const parts = [];
+    if (downloading) parts.push(`${downloading} already downloading`);
+    if (downloaded)  parts.push(`${downloaded} already downloaded`);
+    setUrlWarn(`Skipped — ${parts.join(', ')}`);
+  } else {
+    setUrlWarn('');
+  }
 
   if (!urls.length) {
     syncBtn();
@@ -391,6 +405,7 @@ document.getElementById('dl-form').addEventListener('submit', async e => {
     const driveId = extractDriveId(result.url);
     activeDownloads.add(driveId);
     const card = createCard(result.data.job_id);
+    card.dataset.driveId = driveId;
     trackJob(result.data.job_id, card, driveId);
     anyStarted = true;
   }
