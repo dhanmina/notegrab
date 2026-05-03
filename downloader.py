@@ -200,7 +200,7 @@ def _download_file_web_single(job: Job, url, cookies, filepath, chunk_size):
                 job.send({"type": "progress", "downloaded": downloaded, "total": total_size})
 
 
-def run_download(job_id, video_id_or_url, output_name, chunk_size, num_threads):
+def run_download(job_id, video_id_or_url, output_name, chunk_size, num_threads, user_id=""):
     with jobs_lock:
         job = jobs[job_id]
 
@@ -258,7 +258,7 @@ def run_download(job_id, video_id_or_url, output_name, chunk_size, num_threads):
         if not job.error:
             logger.info("[job:%s] finished: %s", job_id, filename)
             job.finish(filepath, filename)
-            history.append(filename, os.path.getsize(filepath))
+            history.append(filename, os.path.getsize(filepath), user_id)
 
     except Exception as e:
         if not job.is_stopped:

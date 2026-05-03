@@ -7,6 +7,7 @@ import signal
 import sys
 import threading
 import uuid
+from datetime import timedelta
 
 import requests
 from flask import Flask, Response, jsonify, render_template, request, send_file, session
@@ -43,6 +44,7 @@ logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 app.secret_key = os.getenv("FLASK_SECRET", os.urandom(24))
+app.permanent_session_lifetime = timedelta(days=30)
 
 
 def _cleanup_downloads():
@@ -70,8 +72,19 @@ def _get_job(job_id):
         return jobs.get(job_id)
 
 
+def _owns_job(job_id):
+    return job_id in session.get("jobs", [])
+
+
+def _user_id():
+    return session.get("user_id", "")
+
+
 @app.route("/")
 def index():
+    if "user_id" not in session:
+        session["user_id"] = str(uuid.uuid4())
+        session.permanent = True
     return render_template("index.html", slots=session.get("slot", _slot))
 
 
@@ -114,20 +127,27 @@ def start():
     if not url:
         return jsonify({"error": "URL is required"}), 400
 
+    user_jobs = session.get("jobs", [])
     with jobs_lock:
-        active = sum(1 for j in jobs.values() if not j.is_stopped and not j.error and not j.done)
+        active = sum(1 for jid in user_jobs
+                     if jid in jobs and not jobs[jid].is_stopped
+                     and not jobs[jid].error and not jobs[jid].done)
     if active >= session.get("slot", _slot):
-        return jsonify({"error": f"Download limit reached. Please wait for the current download to finish."}), 429
+        return jsonify({"error": "Download limit reached. Please wait for the current download to finish."}), 429
 
     job_id = str(uuid.uuid4())
     job = Job(job_id)
     with jobs_lock:
         jobs[job_id] = job
 
+    user_jobs.append(job_id)
+    session["jobs"] = user_jobs
+    session.modified = True
+
     logger.info("[job:%s] starting for %s", job_id, url)
     threading.Thread(
         target=run_download,
-        args=(job_id, url, output, chunk_size, num_threads),
+        args=(job_id, url, output, chunk_size, num_threads, _user_id()),
         daemon=True,
     ).start()
 
@@ -136,6 +156,8 @@ def start():
 
 @app.route("/progress/<job_id>")
 def progress(job_id):
+    if not _owns_job(job_id):
+        return jsonify({"error": "Job not found"}), 404
     job = _get_job(job_id)
     if not job:
         return jsonify({"error": "Job not found"}), 404
@@ -155,6 +177,8 @@ def progress(job_id):
 
 @app.route("/pause/<job_id>", methods=["POST"])
 def pause_job(job_id):
+    if not _owns_job(job_id):
+        return jsonify({"error": "Job not found"}), 404
     job = _get_job(job_id)
     if not job:
         return jsonify({"error": "Job not found"}), 404
@@ -164,6 +188,8 @@ def pause_job(job_id):
 
 @app.route("/resume/<job_id>", methods=["POST"])
 def resume_job(job_id):
+    if not _owns_job(job_id):
+        return jsonify({"error": "Job not found"}), 404
     job = _get_job(job_id)
     if not job:
         return jsonify({"error": "Job not found"}), 404
@@ -173,6 +199,8 @@ def resume_job(job_id):
 
 @app.route("/stop/<job_id>", methods=["POST"])
 def stop_job(job_id):
+    if not _owns_job(job_id):
+        return jsonify({"error": "Job not found"}), 404
     job = _get_job(job_id)
     if not job:
         return jsonify({"error": "Job not found"}), 404
@@ -182,33 +210,36 @@ def stop_job(job_id):
 
 @app.route("/download/<job_id>")
 def download(job_id):
+    if not _owns_job(job_id):
+        return jsonify({"error": "File not found"}), 404
     with jobs_lock:
         job = jobs.get(job_id)
     if not job or not job.filepath or not os.path.exists(job.filepath):
         return jsonify({"error": "File not found"}), 404
-
     return send_file(job.filepath, as_attachment=True, download_name=job.filename)
 
 
 @app.route("/history", methods=["GET"])
 def get_history():
-    return jsonify(history.load())
+    return jsonify(history.load(_user_id()))
 
 
 @app.route("/history/<entry_id>", methods=["DELETE"])
 def delete_history_entry(entry_id):
-    history.delete(entry_id)
+    history.delete(entry_id, _user_id())
     return "", 204
 
 
 @app.route("/history", methods=["DELETE"])
 def clear_history():
-    history.clear()
+    history.clear(_user_id())
     return "", 204
 
 
 @app.route("/delete/<job_id>", methods=["DELETE"])
 def delete_job(job_id):
+    if not _owns_job(job_id):
+        return "", 204
     with jobs_lock:
         job = jobs.pop(job_id, None)
     if job and job.filepath:
