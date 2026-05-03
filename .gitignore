@@ -6,4 +6,3 @@ downloads/*
 !downloads/.gitkeep
 .env
 history.json
-worker.js

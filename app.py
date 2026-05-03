@@ -22,18 +22,15 @@ from gdrive import extract_drive_id, get_video_url
 import history
 from job import Job
 
-_ENDPOINT = "https://gdrivevidloader.chocopndn.workers.dev/v"
-
-def _resolve_slot():
+def _load_seats() -> dict:
     try:
-        r = requests.post(
-            _ENDPOINT,
-            json={"k": os.getenv("APP_INSTANCE_ID", "")},
-            timeout=3,
-        )
-        return int(r.json().get("s", 1))
+        return json.loads(os.getenv("SEAT_KEYS", "{}"))
     except Exception:
-        return 1
+        return {}
+
+def _resolve_slot() -> int:
+    key = os.getenv("APP_INSTANCE_ID", "").upper()
+    return _load_seats().get(key, 1)
 
 _slot = _resolve_slot()
 
@@ -80,12 +77,8 @@ def index():
 
 @app.route("/activate", methods=["POST"])
 def activate():
-    code = (request.get_json() or {}).get("code", "").strip()
-    try:
-        r = requests.post(_ENDPOINT, json={"k": code}, timeout=3)
-        slots = int(r.json().get("s", 1))
-    except Exception:
-        slots = 1
+    code = (request.get_json() or {}).get("code", "").strip().upper()
+    slots = _load_seats().get(code, 1)
     session["slot"] = slots
     return jsonify({"slots": slots})
 
@@ -227,5 +220,5 @@ def delete_job(job_id):
 
 
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))
+    port = int(os.environ.get("PORT", 8080))
     app.run(host="0.0.0.0", debug=False, port=port)
