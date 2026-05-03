@@ -5,123 +5,139 @@ function extractDriveId(url) {
 
 function isValidDriveUrl(val) {
   if (!val) return false;
-  if (/drive\.google\.com\/(u\/\d+\/)?file\/d\/[a-zA-Z0-9_-]+/.test(val)) return true;
+  if (/drive\.google\.com\/(u\/\d+\/)?file\/d\/[a-zA-Z0-9_-]+/.test(val))
+    return true;
   if (/^[a-zA-Z0-9_-]{25,60}$/.test(val)) return true;
   return false;
 }
 
 function getValidUrls(text) {
-  return text.split('\n').map(l => l.trim()).filter(l => isValidDriveUrl(l));
+  return text
+    .split("\n")
+    .map((l) => l.trim())
+    .filter((l) => isValidDriveUrl(l));
 }
 
 function isMultiMode() {
-  return urlEl.value.split('\n').map(l => l.trim()).filter(Boolean).length > 1;
+  return (
+    urlEl.value
+      .split("\n")
+      .map((l) => l.trim())
+      .filter(Boolean).length > 1
+  );
 }
 
 let titleReady = false;
-let threads    = 4;
-let driveExt   = '';
+let threads = 4;
+let driveExt = "";
 let titleTimer = null;
 
-const activeDownloads    = new Set();
+const activeDownloads = new Set();
 const completedDownloads = new Set();
 
-const urlEl     = document.getElementById('url');
-const dlBtn     = document.getElementById('dl-btn');
-const btnText   = document.getElementById('btn-text');
-const nameInp   = document.getElementById('output');
-const extChip   = document.getElementById('ext-chip');
-const urlFetch  = document.getElementById('url-fetch');
-const urlError  = document.getElementById('url-error');
-const urlWarn   = document.getElementById('url-warn');
-const bottomRow = document.getElementById('bottom-row');
-const nameField = document.getElementById('name-field');
-const tVal      = document.getElementById('t-val');
+const urlEl = document.getElementById("url");
+const dlBtn = document.getElementById("dl-btn");
+const btnText = document.getElementById("btn-text");
+const nameInp = document.getElementById("output");
+const extChip = document.getElementById("ext-chip");
+const urlFetch = document.getElementById("url-fetch");
+const urlError = document.getElementById("url-error");
+const urlWarn = document.getElementById("url-warn");
+const bottomRow = document.getElementById("bottom-row");
+const nameField = document.getElementById("name-field");
+const tVal = document.getElementById("t-val");
 
 function syncBtn() {
-  const urls  = getValidUrls(urlEl.value);
+  const urls = getValidUrls(urlEl.value);
   const multi = isMultiMode();
-  const valid = multi ? urls.length > 0 : (urls.length > 0 && titleReady);
-  dlBtn.classList.toggle('valid', valid);
+  const valid = multi ? urls.length > 0 : urls.length > 0 && titleReady;
+  dlBtn.classList.toggle("valid", valid);
   dlBtn.disabled = !valid;
-  btnText.textContent = multi && urls.length > 1 ? `Download ${urls.length}` : 'Download';
+  btnText.textContent =
+    multi && urls.length > 1 ? `Download ${urls.length}` : "Download";
 }
 
 function resizeTa() {
-  urlEl.style.height = 'auto';
-  urlEl.style.height = urlEl.scrollHeight + 'px';
+  urlEl.style.height = "auto";
+  urlEl.style.height = urlEl.scrollHeight + "px";
 }
 
 function updateMode() {
   const multi = isMultiMode();
-  nameField.style.display = multi ? 'none' : '';
-  bottomRow.classList.toggle('threads-only', multi);
+  nameField.style.display = multi ? "none" : "";
+  bottomRow.classList.toggle("threads-only", multi);
 }
 
 function setUrlError(msg) {
   urlError.textContent = msg;
-  urlError.classList.toggle('on', !!msg);
-  urlEl.classList.toggle('invalid', !!msg);
+  urlError.classList.toggle("on", !!msg);
+  urlEl.classList.toggle("invalid", !!msg);
 }
 
 function setUrlWarn(msg) {
   urlWarn.textContent = msg;
-  urlWarn.classList.toggle('on', !!msg);
+  urlWarn.classList.toggle("on", !!msg);
 }
 
 function esc(s) {
-  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
 function fmtB(b) {
-  if (b >= 1e9) return (b / 1e9).toFixed(2) + ' GB';
-  if (b >= 1e6) return (b / 1e6).toFixed(1) + ' MB';
-  if (b >= 1e3) return (b / 1e3).toFixed(0) + ' KB';
-  return b + ' B';
+  if (b >= 1e9) return (b / 1e9).toFixed(2) + " GB";
+  if (b >= 1e6) return (b / 1e6).toFixed(1) + " MB";
+  if (b >= 1e3) return (b / 1e3).toFixed(0) + " KB";
+  return b + " B";
 }
 
 function fmtSpd(bps) {
-  if (bps >= 1e6) return (bps / 1e6).toFixed(1) + ' MB/s';
-  if (bps >= 1e3) return (bps / 1e3).toFixed(0) + ' KB/s';
-  return bps + ' B/s';
+  if (bps >= 1e6) return (bps / 1e6).toFixed(1) + " MB/s";
+  if (bps >= 1e3) return (bps / 1e3).toFixed(0) + " KB/s";
+  return bps + " B/s";
 }
 
 function fmtEta(s) {
-  if (!isFinite(s) || s <= 0) return '';
-  if (s < 60)   return Math.ceil(s) + 's left';
-  if (s < 3600) return Math.ceil(s / 60) + 'm left';
-  return (s / 3600).toFixed(1) + 'h left';
+  if (!isFinite(s) || s <= 0) return "";
+  if (s < 60) return Math.ceil(s) + "s left";
+  if (s < 3600) return Math.ceil(s / 60) + "m left";
+  return (s / 3600).toFixed(1) + "h left";
 }
 
-document.getElementById('t-minus').addEventListener('click', () => {
-  if (threads > 1) { threads--; tVal.textContent = threads; }
+document.getElementById("t-minus").addEventListener("click", () => {
+  if (threads > 1) {
+    threads--;
+    tVal.textContent = threads;
+  }
 });
-document.getElementById('t-plus').addEventListener('click', () => {
-  if (threads < 16) { threads++; tVal.textContent = threads; }
+document.getElementById("t-plus").addEventListener("click", () => {
+  if (threads < 16) {
+    threads++;
+    tVal.textContent = threads;
+  }
 });
 
-urlEl.addEventListener('keydown', e => {
-  if (e.key === 'Enter' && MAX_SLOTS === 1) e.preventDefault();
+urlEl.addEventListener("keydown", (e) => {
+  if (e.key === "Enter" && MAX_SLOTS === 1) e.preventDefault();
 });
 
-urlEl.addEventListener('input', e => {
+urlEl.addEventListener("input", (e) => {
   if (MAX_SLOTS === 1) {
-    const cleaned = e.target.value.replace(/\n/g, '');
+    const cleaned = e.target.value.replace(/\n/g, "");
     if (cleaned !== e.target.value) e.target.value = cleaned;
   }
   clearTimeout(titleTimer);
   resizeTa();
   updateMode();
-  setUrlError('');
+  setUrlError("");
 
   const v = e.target.value.trim();
 
   if (!v) {
     titleReady = false;
-    driveExt   = '';
-    nameInp.value              = '';
-    nameInp.style.paddingRight = '16px';
-    extChip.style.display      = 'none';
+    driveExt = "";
+    nameInp.value = "";
+    nameInp.style.paddingRight = "16px";
+    extChip.style.display = "none";
     syncBtn();
     return;
   }
@@ -138,52 +154,54 @@ urlEl.addEventListener('input', e => {
 });
 
 async function fetchTitle(url) {
-  urlFetch.classList.add('on');
-  setUrlError('');
+  urlFetch.classList.add("on");
+  setUrlError("");
   try {
-    const r    = await fetch('/info', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+    const r = await fetch("/info", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ url }),
     });
     const data = await r.json();
     if (!r.ok || !data.title) {
-      setUrlError('Could not fetch video info. Make sure the file is a video and is publicly accessible.');
+      setUrlError(
+        "Could not fetch video info. Make sure the file is a video and is publicly accessible.",
+      );
       return;
     }
-    const dot  = data.title.lastIndexOf('.');
-    driveExt   = dot !== -1 ? data.title.slice(dot) : '';
+    const dot = data.title.lastIndexOf(".");
+    driveExt = dot !== -1 ? data.title.slice(dot) : "";
     const base = dot !== -1 ? data.title.slice(0, dot) : data.title;
-    nameInp.value              = base;
-    nameInp.style.paddingRight = driveExt ? '72px' : '16px';
-    extChip.textContent        = driveExt;
-    extChip.style.display      = driveExt ? '' : 'none';
+    nameInp.value = base;
+    nameInp.style.paddingRight = driveExt ? "72px" : "16px";
+    extChip.textContent = driveExt;
+    extChip.style.display = driveExt ? "" : "none";
     titleReady = true;
     syncBtn();
   } catch {
-    setUrlError('Network error — is the server running?');
+    setUrlError("Network error — is the server running?");
   } finally {
-    urlFetch.classList.remove('on');
+    urlFetch.classList.remove("on");
   }
 }
 
 async function controlJob(action, jobId) {
-  await fetch(`/${action}/${jobId}`, { method: 'POST' });
+  await fetch(`/${action}/${jobId}`, { method: "POST" });
 }
 
 function setCardActions(jobId, state, refs) {
   const act = refs.act;
-  if (state === 'queued' || state === 'fetching') {
+  if (state === "queued" || state === "fetching") {
     act.innerHTML = `<button class="ctrl-btn stop-btn" onclick="controlJob('stop','${jobId}')">Stop</button>`;
-  } else if (state === 'downloading') {
+  } else if (state === "downloading") {
     act.innerHTML = `
       <button class="ctrl-btn pause-btn" onclick="controlJob('pause','${jobId}')">Pause</button>
       <button class="ctrl-btn stop-btn"  onclick="controlJob('stop','${jobId}')">Stop</button>`;
-  } else if (state === 'paused') {
+  } else if (state === "paused") {
     act.innerHTML = `
       <button class="ctrl-btn resume-btn" onclick="controlJob('resume','${jobId}')">Resume</button>
       <button class="ctrl-btn stop-btn"   onclick="controlJob('stop','${jobId}')">Stop</button>`;
-  } else if (state === 'done') {
+  } else if (state === "done") {
     act.innerHTML = `
       <a class="save-btn" href="/download/${jobId}">Save file</a>
       <button class="dismiss-btn" onclick="dismissCard('${jobId}')">Dismiss</button>`;
@@ -193,9 +211,9 @@ function setCardActions(jobId, state, refs) {
 }
 
 function createCard(jobId) {
-  const list = document.getElementById('downloads-list');
-  const card = document.createElement('div');
-  card.className = 'dl-card';
+  const list = document.getElementById("downloads-list");
+  const card = document.createElement("div");
+  card.className = "dl-card";
   card.id = `card-${jobId}`;
   card.innerHTML = `
     <div class="card-head">
@@ -219,16 +237,19 @@ function createCard(jobId) {
 
 function trackJob(jobId, card, driveId) {
   const refs = {
-    tag:  document.getElementById(`ctag-${jobId}`),
+    tag: document.getElementById(`ctag-${jobId}`),
     name: document.getElementById(`cname-${jobId}`),
     pbar: document.getElementById(`cpbar-${jobId}`),
-    spd:  document.getElementById(`cspd-${jobId}`),
-    sz:   document.getElementById(`csz-${jobId}`),
-    act:  document.getElementById(`cact-${jobId}`),
+    spd: document.getElementById(`cspd-${jobId}`),
+    sz: document.getElementById(`csz-${jobId}`),
+    act: document.getElementById(`cact-${jobId}`),
   };
 
   const t0 = Date.now();
-  let lb = 0, lt = t0, total = 0, finished = false;
+  let lb = 0,
+    lt = t0,
+    total = 0,
+    finished = false;
   let es;
 
   function finish(succeeded = false) {
@@ -239,76 +260,95 @@ function trackJob(jobId, card, driveId) {
 
   function markError(message) {
     finish();
-    refs.tag.textContent = 'Error';
-    refs.tag.classList.add('red');
-    refs.pbar.className   = 'card-pbar-fill';
-    refs.pbar.style.width = '0%';
-    card.classList.add('error');
-    card.insertAdjacentHTML('beforeend', `<div class="card-err-msg">${esc(message)}</div>`);
-    setCardActions(jobId, 'error', refs);
+    refs.tag.textContent = "Error";
+    refs.tag.classList.add("red");
+    refs.pbar.className = "card-pbar-fill";
+    refs.pbar.style.width = "0%";
+    card.classList.add("error");
+    card.insertAdjacentHTML(
+      "beforeend",
+      `<div class="card-err-msg">${esc(message)}</div>`,
+    );
+    setCardActions(jobId, "error", refs);
   }
 
   const handlers = {
     queued() {
-      refs.tag.textContent = 'Queued';
-      setCardActions(jobId, 'queued', refs);
+      refs.tag.textContent = "Queued";
+      setCardActions(jobId, "queued", refs);
     },
     status(msg) {
-      if (msg.message.startsWith('Downloading:')) {
-        refs.tag.textContent  = 'Downloading';
-        const fname = msg.message.replace('Downloading: ', '');
+      if (msg.message.startsWith("Downloading:")) {
+        refs.tag.textContent = "Downloading";
+        const fname = msg.message.replace("Downloading: ", "");
         refs.name.textContent = fname;
-        refs.name.title       = fname;
-        card.classList.remove('paused');
-        setCardActions(jobId, 'downloading', refs);
+        refs.name.title = fname;
+        card.classList.add("downloading");
+        card.classList.remove("paused");
+        setCardActions(jobId, "downloading", refs);
       } else {
         refs.tag.textContent = msg.message;
-        setCardActions(jobId, 'fetching', refs);
+        card.classList.remove("downloading");
+        setCardActions(jobId, "fetching", refs);
       }
     },
     progress(msg) {
       total = msg.total;
-      const now = Date.now(), dt = (now - lt) / 1000, db = msg.downloaded - lb;
+      const now = Date.now(),
+        dt = (now - lt) / 1000,
+        db = msg.downloaded - lb;
       if (dt > 0.3) {
         const bps = db / dt;
-        const eta = bps > 0 && msg.total > 0 ? (msg.total - msg.downloaded) / bps : Infinity;
-        refs.spd.textContent = fmtSpd(bps) + (eta < Infinity ? '  ·  ' + fmtEta(eta) : '');
-        lb = msg.downloaded; lt = now;
+        const eta =
+          bps > 0 && msg.total > 0
+            ? (msg.total - msg.downloaded) / bps
+            : Infinity;
+        refs.spd.textContent =
+          fmtSpd(bps) + (eta < Infinity ? "  ·  " + fmtEta(eta) : "");
+        lb = msg.downloaded;
+        lt = now;
       }
       if (msg.total > 0) {
         const pct = Math.min(100, (msg.downloaded / msg.total) * 100);
-        refs.pbar.className   = 'card-pbar-fill';
-        refs.pbar.style.width = pct.toFixed(1) + '%';
-        refs.sz.textContent   = fmtB(msg.downloaded) + ' / ' + fmtB(msg.total);
+        refs.pbar.className = "card-pbar-fill";
+        refs.pbar.style.width = pct.toFixed(1) + "%";
+        refs.sz.textContent = fmtB(msg.downloaded) + " / " + fmtB(msg.total);
       } else {
         refs.sz.textContent = fmtB(msg.downloaded);
       }
     },
     paused() {
-      refs.tag.textContent = 'Paused';
-      refs.spd.textContent = '';
-      card.classList.add('paused');
-      setCardActions(jobId, 'paused', refs);
+      refs.tag.textContent = "Paused";
+      refs.spd.textContent = "";
+      card.classList.remove("downloading");
+      card.classList.add("paused");
+      setCardActions(jobId, "paused", refs);
     },
     resumed() {
-      refs.tag.textContent = 'Downloading';
-      card.classList.remove('paused');
-      setCardActions(jobId, 'downloading', refs);
+      refs.tag.textContent = "Downloading";
+      card.classList.add("downloading");
+      card.classList.remove("paused");
+      setCardActions(jobId, "downloading", refs);
     },
     done(msg) {
       es.close();
       finish(true);
-      refs.pbar.className   = 'card-pbar-fill';
-      refs.pbar.style.width = '100%';
-      refs.tag.textContent  = 'Done';
-      refs.tag.classList.add('green');
+      refs.pbar.className = "card-pbar-fill";
+      refs.pbar.style.width = "100%";
+      refs.tag.textContent = "Done";
+      refs.tag.classList.add("green");
       refs.name.textContent = msg.filename;
-      refs.name.title       = msg.filename;
-      refs.spd.textContent  = '';
-      refs.sz.textContent   = [total ? fmtB(total) : '', ((Date.now() - t0) / 1000).toFixed(1) + 's'].filter(Boolean).join(' · ');
-      card.classList.add('done');
-      card.classList.remove('paused');
-      setCardActions(jobId, 'done', refs);
+      refs.name.title = msg.filename;
+      refs.spd.textContent = "";
+      refs.sz.textContent = [
+        total ? fmtB(total) : "",
+        ((Date.now() - t0) / 1000).toFixed(1) + "s",
+      ]
+        .filter(Boolean)
+        .join(" · ");
+      card.classList.add("done");
+      card.classList.remove("paused");
+      setCardActions(jobId, "done", refs);
       loadHistory();
     },
     error(msg) {
@@ -318,117 +358,132 @@ function trackJob(jobId, card, driveId) {
     stopped() {
       es.close();
       finish();
-      refs.tag.textContent  = 'Stopped';
-      refs.spd.textContent  = '';
-      refs.sz.textContent   = '';
-      refs.pbar.className   = 'card-pbar-fill';
-      refs.pbar.style.width = '0%';
-      card.classList.add('stopped');
-      card.classList.remove('paused');
-      setCardActions(jobId, 'stopped', refs);
+      refs.tag.textContent = "Stopped";
+      refs.spd.textContent = "";
+      refs.sz.textContent = "";
+      refs.pbar.className = "card-pbar-fill";
+      refs.pbar.style.width = "0%";
+      card.classList.add("stopped");
+      card.classList.remove("downloading", "paused");
+      setCardActions(jobId, "stopped", refs);
     },
   };
 
   es = new EventSource(`/progress/${jobId}`);
 
-  es.onmessage = ev => {
+  es.onmessage = (ev) => {
     const msg = JSON.parse(ev.data);
-    if (msg.type === 'ping') return;
+    if (msg.type === "ping") return;
     handlers[msg.type]?.(msg);
   };
 
   es.onerror = () => {
     if (finished) return;
     es.close();
-    markError('Connection lost.');
+    markError("Connection lost.");
   };
 }
 
 function fmtDate(iso) {
   const d = new Date(iso);
-  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
-    + ' · ' + d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+  return (
+    d.toLocaleDateString(undefined, {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    }) +
+    " · " +
+    d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })
+  );
 }
 
 function renderHistoryEntry(entry) {
-  const el = document.createElement('div');
-  el.className = 'history-entry';
+  const el = document.createElement("div");
+  el.className = "history-entry";
   el.id = `hentry-${entry.id}`;
   el.innerHTML = `
     <div class="history-name">${esc(entry.filename)}</div>
-    <div class="history-meta">${entry.size ? fmtB(entry.size) + ' · ' : ''}${fmtDate(entry.downloaded_at)}</div>
+    <div class="history-meta">${entry.size ? fmtB(entry.size) + " · " : ""}${fmtDate(entry.downloaded_at)}</div>
     <button class="history-del" onclick="deleteHistoryEntry('${entry.id}')">×</button>
   `;
   return el;
 }
 
 function updateHistoryEmpty() {
-  const list  = document.getElementById('history-list');
-  const empty = document.getElementById('history-empty');
-  if (empty) empty.style.display = list.children.length === 0 ? '' : 'none';
+  const list = document.getElementById("history-list");
+  const empty = document.getElementById("history-empty");
+  if (empty) empty.style.display = list.children.length === 0 ? "" : "none";
 }
 
 async function loadHistory() {
-  const entries = await fetch('/history').then(r => r.json()).catch(() => []);
-  const list = document.getElementById('history-list');
-  list.innerHTML = '';
-  entries.forEach(e => list.appendChild(renderHistoryEntry(e)));
+  const entries = await fetch("/history")
+    .then((r) => r.json())
+    .catch(() => []);
+  const list = document.getElementById("history-list");
+  list.innerHTML = "";
+  entries.forEach((e) => list.appendChild(renderHistoryEntry(e)));
   updateHistoryEmpty();
 }
 
 async function deleteHistoryEntry(id) {
-  await fetch(`/history/${id}`, { method: 'DELETE' });
+  await fetch(`/history/${id}`, { method: "DELETE" });
   document.getElementById(`hentry-${id}`)?.remove();
   updateHistoryEmpty();
 }
 
 async function clearHistory() {
-  await fetch('/history', { method: 'DELETE' });
-  document.getElementById('history-list').innerHTML = '';
+  await fetch("/history", { method: "DELETE" });
+  document.getElementById("history-list").innerHTML = "";
   updateHistoryEmpty();
 }
 
 function dismissCard(jobId) {
   const card = document.getElementById(`card-${jobId}`);
   completedDownloads.delete(card?.dataset.driveId);
-  fetch(`/delete/${jobId}`, { method: 'DELETE' });
+  fetch(`/delete/${jobId}`, { method: "DELETE" });
   card?.remove();
 }
 
 function resetForm() {
-  urlEl.value                = '';
-  urlEl.style.height         = '';
-  nameInp.value              = '';
-  nameInp.style.paddingRight = '16px';
-  extChip.style.display      = 'none';
-  driveExt   = '';
+  urlEl.value = "";
+  urlEl.style.height = "";
+  nameInp.value = "";
+  nameInp.style.paddingRight = "16px";
+  extChip.style.display = "none";
+  driveExt = "";
   titleReady = false;
-  setUrlError('');
-  setUrlWarn('');
+  setUrlError("");
+  setUrlWarn("");
   updateMode();
   syncBtn();
   urlEl.focus();
 }
 
-document.getElementById('dl-form').addEventListener('submit', async e => {
+document.getElementById("dl-form").addEventListener("submit", async (e) => {
   e.preventDefault();
 
   const allUrls = getValidUrls(urlEl.value);
   if (!allUrls.length) return;
 
-  const isDupe = u => activeDownloads.has(extractDriveId(u)) || completedDownloads.has(extractDriveId(u));
-  const dupes  = allUrls.filter(u => isDupe(u));
-  const urls   = allUrls.filter(u => !isDupe(u));
+  const isDupe = (u) =>
+    activeDownloads.has(extractDriveId(u)) ||
+    completedDownloads.has(extractDriveId(u));
+  const dupes = allUrls.filter((u) => isDupe(u));
+  const urls = allUrls.filter((u) => !isDupe(u));
 
   if (dupes.length) {
-    const downloading = dupes.filter(u => activeDownloads.has(extractDriveId(u))).length;
-    const downloaded  = dupes.filter(u => completedDownloads.has(extractDriveId(u))).length;
+    const downloading = dupes.filter((u) =>
+      activeDownloads.has(extractDriveId(u)),
+    ).length;
+    const downloaded = dupes.filter((u) =>
+      completedDownloads.has(extractDriveId(u)),
+    ).length;
     const parts = [];
     if (downloading) parts.push(`${downloading} already downloading`);
-    if (downloaded)  parts.push(`${downloaded} already downloaded`);
-    setUrlWarn(`Skipped — ${parts.join(', ')}`);
+    if (downloaded) parts.push(`${downloaded} already downloaded`);
+    setUrlWarn(`Skipped — ${parts.join(", ")}`);
   } else {
-    setUrlWarn('');
+    setUrlWarn("");
   }
 
   if (!urls.length) {
@@ -436,24 +491,35 @@ document.getElementById('dl-form').addEventListener('submit', async e => {
     return;
   }
 
-  const multi     = urls.length > 1;
-  const base      = nameInp.value.trim();
-  const outputVal = (!multi && base) ? base + driveExt : '';
+  const multi = urls.length > 1;
+  const base = nameInp.value.trim();
+  const outputVal = !multi && base ? base + driveExt : "";
 
   dlBtn.disabled = true;
-  dlBtn.classList.add('loading');
-  btnText.textContent = 'Starting…';
+  dlBtn.classList.add("loading");
+  btnText.textContent = "Starting…";
 
-  const results = await Promise.all(urls.map(url =>
-    fetch('/start', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ url, output: outputVal, threads, chunk_size: 65536 }),
-    }).then(r => r.json().then(d => ({ ok: r.ok, status: r.status, data: d, url }))).catch(() => null)
-  ));
+  const results = await Promise.all(
+    urls.map((url) =>
+      fetch("/start", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          url,
+          output: outputVal,
+          threads,
+          chunk_size: 65536,
+        }),
+      })
+        .then((r) =>
+          r.json().then((d) => ({ ok: r.ok, status: r.status, data: d, url })),
+        )
+        .catch(() => null),
+    ),
+  );
 
-  dlBtn.classList.remove('loading');
-  btnText.textContent = 'Download';
+  dlBtn.classList.remove("loading");
+  btnText.textContent = "Download";
 
   let anyStarted = false;
   for (const result of results) {
@@ -471,7 +537,7 @@ document.getElementById('dl-form').addEventListener('submit', async e => {
   }
 
   if (!anyStarted) {
-    setUrlError('Failed to start downloads. Is the server running?');
+    setUrlError("Failed to start downloads. Is the server running?");
     syncBtn();
     return;
   }
@@ -479,61 +545,69 @@ document.getElementById('dl-form').addEventListener('submit', async e => {
   resetForm();
 });
 
-const keyBtn      = document.getElementById('key-btn');
-const keyBackdrop = document.getElementById('modal-backdrop');
-const keyInp      = document.getElementById('key-inp');
-const keyStatus   = document.getElementById('key-status');
+const keyBtn = document.getElementById("key-btn");
+const keyBackdrop = document.getElementById("modal-backdrop");
+const keyInp = document.getElementById("key-inp");
+const keyStatus = document.getElementById("key-status");
 
 function openKeyModal() {
   if (keyBtn.disabled) return;
-  keyBackdrop.classList.add('open');
-  keyBtn.classList.add('active');
-  keyStatus.textContent = '';
-  keyInp.value = '';
+  keyBackdrop.classList.add("open");
+  keyBtn.classList.add("active");
+  keyStatus.textContent = "";
+  keyInp.value = "";
   setTimeout(() => keyInp.focus(), 50);
 }
 
 function closeKeyModal() {
-  keyBackdrop.classList.remove('open');
-  keyBtn.classList.remove('active');
+  keyBackdrop.classList.remove("open");
+  keyBtn.classList.remove("active");
 }
 
-keyBtn.addEventListener('click', openKeyModal);
-document.getElementById('modal-cancel').addEventListener('click', closeKeyModal);
-keyBackdrop.addEventListener('click', e => { if (e.target === keyBackdrop) closeKeyModal(); });
-document.addEventListener('keydown', e => { if (e.key === 'Escape') closeKeyModal(); });
+keyBtn.addEventListener("click", openKeyModal);
+document
+  .getElementById("modal-cancel")
+  .addEventListener("click", closeKeyModal);
+keyBackdrop.addEventListener("click", (e) => {
+  if (e.target === keyBackdrop) closeKeyModal();
+});
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") closeKeyModal();
+});
 
-document.getElementById('key-submit').addEventListener('click', submitKey);
-keyInp.addEventListener('keydown', e => { if (e.key === 'Enter') submitKey(); });
+document.getElementById("key-submit").addEventListener("click", submitKey);
+keyInp.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") submitKey();
+});
 
 async function submitKey() {
   const code = keyInp.value.trim();
   if (!code) return;
-  keyStatus.textContent = '…';
+  keyStatus.textContent = "…";
   try {
-    const r    = await fetch('/activate', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+    const r = await fetch("/activate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ code }),
     });
     const data = await r.json();
     if (data.slots > 1) {
       MAX_SLOTS = data.slots;
-      urlEl.placeholder = 'Paste one or more Google Drive links, one per line';
+      urlEl.placeholder = "Paste one or more Google Drive links, one per line";
       const visible = code.slice(0, Math.min(3, code.length)).toUpperCase();
-      const masked  = visible + '*'.repeat(5 - visible.length);
-      document.getElementById('key-btn-label').textContent = masked;
-      keyBtn.classList.remove('active');
-      keyBtn.classList.add('unlocked');
+      const masked = visible + "*".repeat(5 - visible.length);
+      document.getElementById("key-btn-label").textContent = masked;
+      keyBtn.classList.remove("active");
+      keyBtn.classList.add("unlocked");
       keyBtn.disabled = true;
       closeKeyModal();
     } else {
-      keyStatus.style.color = 'var(--red)';
-      keyStatus.textContent = 'Invalid key';
+      keyStatus.style.color = "var(--red)";
+      keyStatus.textContent = "Invalid key";
     }
   } catch {
-    keyStatus.style.color = 'var(--red)';
-    keyStatus.textContent = 'Network error';
+    keyStatus.style.color = "var(--red)";
+    keyStatus.textContent = "Network error";
   }
 }
 

@@ -53,11 +53,16 @@
   </form>
 
   <div class="sections">
-    <div id="downloads-list" class="downloads-list"></div>
+    <section class="downloads-section">
+      <div class="section-head">
+        <span class="section-label">Downloads</span>
+      </div>
+      <div id="downloads-list" class="downloads-list"></div>
+    </section>
 
     <section id="history-section" class="history-section">
-      <div class="history-head">
-        <span class="history-label">History</span>
+      <div class="section-head">
+        <span class="section-label">History</span>
         <button class="history-clear-btn" onclick="clearHistory()">Clear all</button>
       </div>
       <div id="history-empty" class="history-empty">No downloads yet</div>
