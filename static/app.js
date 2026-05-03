@@ -1,3 +1,8 @@
+function extractDriveId(url) {
+  const m = url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
+  return m ? m[1] : url;
+}
+
 function isValidDriveUrl(val) {
   if (!val) return false;
   if (/drive\.google\.com\/(u\/\d+\/)?file\/d\/[a-zA-Z0-9_-]+/.test(val)) return true;
@@ -18,6 +23,8 @@ let threads    = 4;
 let driveExt   = '';
 let titleTimer = null;
 
+const activeDownloads = new Set();
+
 const urlEl     = document.getElementById('url');
 const dlBtn     = document.getElementById('dl-btn');
 const btnText   = document.getElementById('btn-text');
@@ -25,6 +32,7 @@ const nameInp   = document.getElementById('output');
 const extChip   = document.getElementById('ext-chip');
 const urlFetch  = document.getElementById('url-fetch');
 const urlError  = document.getElementById('url-error');
+const urlWarn   = document.getElementById('url-warn');
 const bottomRow = document.getElementById('bottom-row');
 const nameField = document.getElementById('name-field');
 const tVal      = document.getElementById('t-val');
@@ -53,6 +61,11 @@ function setUrlError(msg) {
   urlError.textContent = msg;
   urlError.classList.toggle('on', !!msg);
   urlEl.classList.toggle('invalid', !!msg);
+}
+
+function setUrlWarn(msg) {
+  urlWarn.textContent = msg;
+  urlWarn.classList.toggle('on', !!msg);
 }
 
 function esc(s) {
@@ -195,7 +208,7 @@ function createCard(jobId) {
   return card;
 }
 
-function trackJob(jobId, card) {
+function trackJob(jobId, card, driveId) {
   const refs = {
     tag:  document.getElementById(`ctag-${jobId}`),
     name: document.getElementById(`cname-${jobId}`),
@@ -209,8 +222,13 @@ function trackJob(jobId, card) {
   let lb = 0, lt = t0, total = 0, finished = false;
   let es;
 
-  function markError(message) {
+  function finish() {
     finished = true;
+    activeDownloads.delete(driveId);
+  }
+
+  function markError(message) {
+    finish();
     refs.tag.textContent = 'Error';
     refs.tag.classList.add('red');
     refs.pbar.className   = 'card-pbar-fill';
@@ -267,7 +285,7 @@ function trackJob(jobId, card) {
     },
     done(msg) {
       es.close();
-      finished = true;
+      finish();
       refs.pbar.className   = 'card-pbar-fill';
       refs.pbar.style.width = '100%';
       refs.tag.textContent  = 'Done';
@@ -285,7 +303,7 @@ function trackJob(jobId, card) {
     },
     stopped() {
       es.close();
-      finished = true;
+      finish();
       refs.tag.textContent  = 'Stopped';
       refs.spd.textContent  = '';
       refs.sz.textContent   = '';
@@ -326,6 +344,7 @@ function resetForm() {
   driveExt   = '';
   titleReady = false;
   setUrlError('');
+  setUrlWarn('');
   updateMode();
   syncBtn();
   urlEl.focus();
@@ -334,8 +353,18 @@ function resetForm() {
 document.getElementById('dl-form').addEventListener('submit', async e => {
   e.preventDefault();
 
-  const urls = getValidUrls(urlEl.value);
-  if (!urls.length) return;
+  const allUrls = getValidUrls(urlEl.value);
+  if (!allUrls.length) return;
+
+  const dupes = allUrls.filter(u => activeDownloads.has(extractDriveId(u)));
+  const urls  = allUrls.filter(u => !activeDownloads.has(extractDriveId(u)));
+
+  setUrlWarn(dupes.length ? `${dupes.length} duplicate${dupes.length > 1 ? 's' : ''} skipped — already downloading` : '');
+
+  if (!urls.length) {
+    syncBtn();
+    return;
+  }
 
   const multi     = urls.length > 1;
   const base      = nameInp.value.trim();
@@ -350,7 +379,7 @@ document.getElementById('dl-form').addEventListener('submit', async e => {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ url, output: outputVal, threads, chunk_size: 65536 }),
-    }).then(r => r.json().then(d => ({ ok: r.ok, data: d }))).catch(() => null)
+    }).then(r => r.json().then(d => ({ ok: r.ok, data: d, url }))).catch(() => null)
   ));
 
   dlBtn.classList.remove('loading');
@@ -359,8 +388,10 @@ document.getElementById('dl-form').addEventListener('submit', async e => {
   let anyStarted = false;
   for (const result of results) {
     if (!result || !result.ok) continue;
+    const driveId = extractDriveId(result.url);
+    activeDownloads.add(driveId);
     const card = createCard(result.data.job_id);
-    trackJob(result.data.job_id, card);
+    trackJob(result.data.job_id, card, driveId);
     anyStarted = true;
   }
 

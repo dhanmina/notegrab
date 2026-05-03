@@ -116,6 +116,15 @@ body {
 }
 .url-error.on { display: block; }
 
+.url-warn {
+  font-size: 0.72rem;
+  color: #f5a623;
+  margin-top: 6px;
+  display: none;
+  animation: rise 0.15s ease both;
+}
+.url-warn.on { display: block; }
+
 .bottom-row {
   display: grid;
   grid-template-columns: 1fr auto;

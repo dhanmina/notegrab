@@ -6,7 +6,7 @@ import threading
 import uuid
 
 import requests
-from flask import Flask, Response, after_this_request, jsonify, render_template, request, send_file
+from flask import Flask, Response, jsonify, render_template, request, send_file
 
 from downloader import jobs, jobs_lock, run_download
 from gdrive import extract_drive_id, get_video_url
@@ -131,18 +131,7 @@ def download(job_id):
     if not job or not job.filepath or not os.path.exists(job.filepath):
         return jsonify({"error": "File not found"}), 404
 
-    filepath = job.filepath
-    filename = job.filename
-
-    @after_this_request
-    def cleanup(response):
-        try:
-            os.remove(filepath)
-        except OSError:
-            pass
-        return response
-
-    return send_file(filepath, as_attachment=True, download_name=filename)
+    return send_file(job.filepath, as_attachment=True, download_name=job.filename)
 
 
 @app.route("/delete/<job_id>", methods=["DELETE"])
