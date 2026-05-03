@@ -2,6 +2,7 @@ import json
 import logging
 import queue
 import threading
+import time
 
 logger = logging.getLogger(__name__)
 
@@ -13,6 +14,7 @@ class Job:
         self.filename = None
         self.done = False
         self.error = None
+        self.finished_at = None
         self._resume_event = threading.Event()
         self._resume_event.set()
         self._stopped = threading.Event()
@@ -36,6 +38,7 @@ class Job:
         self._stopped.set()
         if not self.done:
             self.done = True
+            self.finished_at = time.monotonic()
             self.send({"type": "stopped"})
 
     def wait_if_paused(self):
@@ -51,6 +54,7 @@ class Job:
         self.filepath = filepath
         self.filename = filename
         self.done = True
+        self.finished_at = time.monotonic()
         self.send({"type": "done", "filename": filename})
 
     def fail(self, message):
@@ -58,5 +62,6 @@ class Job:
             return
         self.error = message
         self.done = True
+        self.finished_at = time.monotonic()
         logger.error("[job:%s] failed: %s", self.job_id, message)
         self.send({"type": "error", "message": message})

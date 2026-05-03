@@ -6,6 +6,7 @@ import queue
 import signal
 import sys
 import threading
+import time
 import uuid
 from datetime import timedelta
 
@@ -65,6 +66,35 @@ signal.signal(signal.SIGTERM, _shutdown)
 
 _cleanup_downloads()
 atexit.register(_cleanup_downloads)
+
+FILE_TTL = int(os.getenv("FILE_TTL_SECONDS", 3600))  # default 1 hour
+CLEANUP_INTERVAL = 300  # check every 5 minutes
+
+def _reap_expired_jobs():
+    while True:
+        time.sleep(CLEANUP_INTERVAL)
+        now = time.monotonic()
+        expired = []
+        with jobs_lock:
+            for job_id, job in list(jobs.items()):
+                if job.finished_at and (now - job.finished_at) >= FILE_TTL:
+                    expired.append(job_id)
+                    jobs.pop(job_id)
+        for job_id in expired:
+            logger.info("[cleanup] removing expired job %s", job_id)
+        # files are named {job_id}_* so we can match by prefix
+        for name in os.listdir(DOWNLOADS_DIR):
+            if name == ".gitkeep":
+                continue
+            job_id = name.split("_")[0]
+            if job_id in expired:
+                try:
+                    os.remove(os.path.join(DOWNLOADS_DIR, name))
+                    logger.info("[cleanup] deleted file %s", name)
+                except OSError:
+                    pass
+
+threading.Thread(target=_reap_expired_jobs, daemon=True).start()
 
 
 def _get_job(job_id):
