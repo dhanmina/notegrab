@@ -228,12 +228,4 @@ def delete_job(job_id):
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
-    is_local = not os.environ.get("RAILWAY_ENVIRONMENT")
-
-    print(f"\n  viddownload  —  http://127.0.0.1:{port}\n")
-
-    if is_local:
-        import webbrowser
-        threading.Timer(1.0, lambda: webbrowser.open(f"http://127.0.0.1:{port}")).start()
-
     app.run(host="0.0.0.0", debug=False, port=port)
