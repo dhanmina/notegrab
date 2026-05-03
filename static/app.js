@@ -248,7 +248,9 @@ function trackJob(jobId, card, driveId) {
     status(msg) {
       if (msg.message.startsWith('Downloading:')) {
         refs.tag.textContent  = 'Downloading';
-        refs.name.textContent = msg.message.replace('Downloading: ', '');
+        const fname = msg.message.replace('Downloading: ', '');
+        refs.name.textContent = fname;
+        refs.name.title       = fname;
         card.classList.remove('paused');
         setCardActions(jobId, 'downloading', refs);
       } else {
@@ -293,11 +295,13 @@ function trackJob(jobId, card, driveId) {
       refs.tag.textContent  = 'Done';
       refs.tag.classList.add('green');
       refs.name.textContent = msg.filename;
+      refs.name.title       = msg.filename;
       refs.spd.textContent  = '';
       refs.sz.textContent   = [total ? fmtB(total) : '', ((Date.now() - t0) / 1000).toFixed(1) + 's'].filter(Boolean).join(' · ');
       card.classList.add('done');
       card.classList.remove('paused');
       setCardActions(jobId, 'done', refs);
+      loadHistory();
     },
     error(msg) {
       es.close();
@@ -330,6 +334,50 @@ function trackJob(jobId, card, driveId) {
     es.close();
     markError('Connection lost.');
   };
+}
+
+function fmtDate(iso) {
+  const d = new Date(iso);
+  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
+    + ' · ' + d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+}
+
+function renderHistoryEntry(entry) {
+  const el = document.createElement('div');
+  el.className = 'history-entry';
+  el.id = `hentry-${entry.id}`;
+  el.innerHTML = `
+    <div class="history-name">${esc(entry.filename)}</div>
+    <div class="history-meta">${entry.size ? fmtB(entry.size) + ' · ' : ''}${fmtDate(entry.downloaded_at)}</div>
+    <button class="history-del" onclick="deleteHistoryEntry('${entry.id}')">×</button>
+  `;
+  return el;
+}
+
+function updateHistoryEmpty() {
+  const list  = document.getElementById('history-list');
+  const empty = document.getElementById('history-empty');
+  if (empty) empty.style.display = list.children.length === 0 ? '' : 'none';
+}
+
+async function loadHistory() {
+  const entries = await fetch('/history').then(r => r.json()).catch(() => []);
+  const list = document.getElementById('history-list');
+  list.innerHTML = '';
+  entries.forEach(e => list.appendChild(renderHistoryEntry(e)));
+  updateHistoryEmpty();
+}
+
+async function deleteHistoryEntry(id) {
+  await fetch(`/history/${id}`, { method: 'DELETE' });
+  document.getElementById(`hentry-${id}`)?.remove();
+  updateHistoryEmpty();
+}
+
+async function clearHistory() {
+  await fetch('/history', { method: 'DELETE' });
+  document.getElementById('history-list').innerHTML = '';
+  updateHistoryEmpty();
 }
 
 function dismissCard(jobId) {
@@ -420,3 +468,4 @@ document.getElementById('dl-form').addEventListener('submit', async e => {
 });
 
 syncBtn();
+loadHistory();

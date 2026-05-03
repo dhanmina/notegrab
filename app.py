@@ -13,6 +13,7 @@ from flask import Flask, Response, jsonify, render_template, request, send_file
 
 from downloader import DOWNLOADS_DIR, jobs, jobs_lock, run_download
 from gdrive import extract_drive_id, get_video_url
+import history
 from job import Job
 
 logging.basicConfig(
@@ -156,6 +157,23 @@ def download(job_id):
         return jsonify({"error": "File not found"}), 404
 
     return send_file(job.filepath, as_attachment=True, download_name=job.filename)
+
+
+@app.route("/history", methods=["GET"])
+def get_history():
+    return jsonify(history.load())
+
+
+@app.route("/history/<entry_id>", methods=["DELETE"])
+def delete_history_entry(entry_id):
+    history.delete(entry_id)
+    return "", 204
+
+
+@app.route("/history", methods=["DELETE"])
+def clear_history():
+    history.clear()
+    return "", 204
 
 
 @app.route("/delete/<job_id>", methods=["DELETE"])

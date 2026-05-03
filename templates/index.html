@@ -44,7 +44,18 @@
     </button>
   </form>
 
-  <div id="downloads-list" class="downloads-list"></div>
+  <div class="sections">
+    <div id="downloads-list" class="downloads-list"></div>
+
+    <section id="history-section" class="history-section">
+      <div class="history-head">
+        <span class="history-label">History</span>
+        <button class="history-clear-btn" onclick="clearHistory()">Clear all</button>
+      </div>
+      <div id="history-empty" class="history-empty">No downloads yet</div>
+      <div id="history-list" class="history-list"></div>
+    </section>
+  </div>
 
 </div>
 <script src="/static/app.js"></script>

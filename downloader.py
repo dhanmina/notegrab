@@ -9,6 +9,7 @@ import time
 import requests
 
 from gdrive import extract_drive_id, get_file_size, get_video_url, sanitize_filename
+import history
 from job import Job
 
 logger = logging.getLogger(__name__)
@@ -257,6 +258,7 @@ def run_download(job_id, video_id_or_url, output_name, chunk_size, num_threads):
         if not job.error:
             logger.info("[job:%s] finished: %s", job_id, filename)
             job.finish(filepath, filename)
+            history.append(filename, os.path.getsize(filepath))
 
     except Exception as e:
         if not job.is_stopped:
