@@ -9,7 +9,7 @@ import threading
 import uuid
 
 import requests
-from flask import Flask, Response, jsonify, render_template, request, send_file
+from flask import Flask, Response, jsonify, render_template, request, send_file, session
 
 try:
     from dotenv import load_dotenv
@@ -45,6 +45,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
+app.secret_key = os.getenv("FLASK_SECRET", os.urandom(24))
 
 
 def _cleanup_downloads():
@@ -75,7 +76,19 @@ def _get_job(job_id):
 
 @app.route("/")
 def index():
-    return render_template("index.html", slots=_slot)
+    return render_template("index.html", slots=session.get("slot", _slot))
+
+
+@app.route("/activate", methods=["POST"])
+def activate():
+    code = (request.get_json() or {}).get("code", "").strip()
+    try:
+        r = requests.post(_ENDPOINT, json={"k": code}, timeout=3)
+        slots = int(r.json().get("s", 1))
+    except Exception:
+        slots = 1
+    session["slot"] = slots
+    return jsonify({"slots": slots})
 
 
 @app.route("/info", methods=["POST"])
@@ -111,7 +124,7 @@ def start():
 
     with jobs_lock:
         active = sum(1 for j in jobs.values() if not j.is_stopped and not j.error and not j.done)
-    if active >= _slot:
+    if active >= session.get("slot", _slot):
         return jsonify({"error": f"Download limit reached. Please wait for the current download to finish."}), 429
 
     job_id = str(uuid.uuid4())

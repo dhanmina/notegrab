@@ -65,6 +65,12 @@ body {
 
 .wm { margin-bottom: 48px; }
 
+.wm-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
 .wm-name {
   font-size: 0.72rem;
   font-weight: 700;
@@ -77,6 +83,107 @@ body {
   font-size: 0.68rem;
   color: var(--dim);
   margin-top: 4px;
+}
+
+.key-btn {
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--dim);
+  border-radius: 6px;
+  font-size: 0.72rem;
+  font-family: var(--sans);
+  padding: 4px 10px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  transition: color 0.12s, border-color 0.12s;
+}
+.key-btn:hover { color: var(--sub); border-color: var(--border-hi); }
+.key-btn.unlocked { color: var(--green); border-color: rgba(52,168,83,0.4); cursor: default; }
+.key-btn.unlocked svg { stroke: var(--green); }
+
+.modal-backdrop {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.6);
+  backdrop-filter: blur(4px);
+  z-index: 100;
+  align-items: center;
+  justify-content: center;
+}
+.modal-backdrop.open { display: flex; }
+
+.modal {
+  background: var(--surface);
+  border: 1px solid var(--border-hi);
+  border-radius: 14px;
+  padding: 24px;
+  width: 320px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  animation: rise 0.18s cubic-bezier(0.16,1,0.3,1) both;
+}
+
+.modal-title {
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--sub);
+}
+
+.key-inp {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 0.88rem;
+  padding: 10px 14px;
+  outline: none;
+  width: 100%;
+  transition: border-color 0.15s;
+}
+.key-inp:focus { border-color: var(--border-hi); }
+
+.modal-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.modal-cancel {
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--dim);
+  border-radius: 7px;
+  font-size: 0.82rem;
+  padding: 8px 16px;
+  cursor: pointer;
+  transition: color 0.12s, border-color 0.12s;
+}
+.modal-cancel:hover { color: var(--sub); border-color: var(--border-hi); }
+
+.key-submit {
+  background: var(--accent);
+  border: none;
+  color: #fff;
+  border-radius: 7px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  padding: 8px 16px;
+  cursor: pointer;
+  transition: opacity 0.12s;
+}
+.key-submit:hover { opacity: 0.85; }
+
+.key-status {
+  font-size: 0.72rem;
+  color: var(--dim);
+  min-height: 1em;
 }
 
 .url-field { margin-bottom: 8px; position: relative; }

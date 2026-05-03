@@ -479,5 +479,63 @@ document.getElementById('dl-form').addEventListener('submit', async e => {
   resetForm();
 });
 
+const keyBtn      = document.getElementById('key-btn');
+const keyBackdrop = document.getElementById('modal-backdrop');
+const keyInp      = document.getElementById('key-inp');
+const keyStatus   = document.getElementById('key-status');
+
+function openKeyModal() {
+  if (keyBtn.disabled) return;
+  keyBackdrop.classList.add('open');
+  keyBtn.classList.add('active');
+  keyStatus.textContent = '';
+  keyInp.value = '';
+  setTimeout(() => keyInp.focus(), 50);
+}
+
+function closeKeyModal() {
+  keyBackdrop.classList.remove('open');
+  keyBtn.classList.remove('active');
+}
+
+keyBtn.addEventListener('click', openKeyModal);
+document.getElementById('modal-cancel').addEventListener('click', closeKeyModal);
+keyBackdrop.addEventListener('click', e => { if (e.target === keyBackdrop) closeKeyModal(); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeKeyModal(); });
+
+document.getElementById('key-submit').addEventListener('click', submitKey);
+keyInp.addEventListener('keydown', e => { if (e.key === 'Enter') submitKey(); });
+
+async function submitKey() {
+  const code = keyInp.value.trim();
+  if (!code) return;
+  keyStatus.textContent = '…';
+  try {
+    const r    = await fetch('/activate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code }),
+    });
+    const data = await r.json();
+    if (data.slots > 1) {
+      MAX_SLOTS = data.slots;
+      urlEl.placeholder = 'Paste one or more Google Drive links, one per line';
+      const visible = code.slice(0, Math.min(3, code.length)).toUpperCase();
+      const masked  = visible + '*'.repeat(5 - visible.length);
+      document.getElementById('key-btn-label').textContent = masked;
+      keyBtn.classList.remove('active');
+      keyBtn.classList.add('unlocked');
+      keyBtn.disabled = true;
+      closeKeyModal();
+    } else {
+      keyStatus.style.color = 'var(--red)';
+      keyStatus.textContent = 'Invalid key';
+    }
+  } catch {
+    keyStatus.style.color = 'var(--red)';
+    keyStatus.textContent = 'Network error';
+  }
+}
+
 syncBtn();
 loadHistory();
