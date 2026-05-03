@@ -1,14 +1,17 @@
+import atexit
 import json
 import logging
 import os
 import queue
+import signal
+import sys
 import threading
 import uuid
 
 import requests
 from flask import Flask, Response, jsonify, render_template, request, send_file
 
-from downloader import jobs, jobs_lock, run_download
+from downloader import DOWNLOADS_DIR, jobs, jobs_lock, run_download
 from gdrive import extract_drive_id, get_video_url
 from job import Job
 
@@ -20,6 +23,27 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
+
+
+def _cleanup_downloads():
+    for name in os.listdir(DOWNLOADS_DIR):
+        if name == ".gitkeep":
+            continue
+        try:
+            os.remove(os.path.join(DOWNLOADS_DIR, name))
+        except OSError:
+            pass
+
+
+def _shutdown(signum, frame):
+    _cleanup_downloads()
+    sys.exit(0)
+
+signal.signal(signal.SIGTERM, _shutdown)
+signal.signal(signal.SIGHUP, _shutdown)
+
+_cleanup_downloads()
+atexit.register(_cleanup_downloads)
 
 
 def _get_job(job_id):
