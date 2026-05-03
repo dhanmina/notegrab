@@ -17,7 +17,7 @@
   <form id="dl-form">
     <div class="url-field">
       <textarea class="url-ta" id="url" rows="1"
-        placeholder="Paste one or more Google Drive links, one per line"
+        placeholder="{{ 'Paste a Google Drive link' if slots == 1 else 'Paste one or more Google Drive links, one per line' }}"
         autocomplete="off" spellcheck="false"></textarea>
       <div class="url-fetch" id="url-fetch"></div>
     </div>
@@ -58,6 +58,7 @@
   </div>
 
 </div>
+<script>const MAX_SLOTS = {{ slots }};</script>
 <script src="/static/app.js"></script>
 </body>
 </html>

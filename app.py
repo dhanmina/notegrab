@@ -11,10 +11,31 @@ import uuid
 import requests
 from flask import Flask, Response, jsonify, render_template, request, send_file
 
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
+
 from downloader import DOWNLOADS_DIR, jobs, jobs_lock, run_download
 from gdrive import extract_drive_id, get_video_url
 import history
 from job import Job
+
+_ENDPOINT = "https://gdrivevidloader.chocopndn.workers.dev/v"
+
+def _resolve_slot():
+    try:
+        r = requests.post(
+            _ENDPOINT,
+            json={"k": os.getenv("APP_INSTANCE_ID", "")},
+            timeout=3,
+        )
+        return int(r.json().get("s", 1))
+    except Exception:
+        return 1
+
+_slot = _resolve_slot()
 
 logging.basicConfig(
     level=logging.INFO,
@@ -54,7 +75,7 @@ def _get_job(job_id):
 
 @app.route("/")
 def index():
-    return render_template("index.html")
+    return render_template("index.html", slots=_slot)
 
 
 @app.route("/info", methods=["POST"])
@@ -87,6 +108,11 @@ def start():
 
     if not url:
         return jsonify({"error": "URL is required"}), 400
+
+    with jobs_lock:
+        active = sum(1 for j in jobs.values() if not j.is_stopped and not j.error and not j.done)
+    if active >= _slot:
+        return jsonify({"error": f"Download limit reached. Please wait for the current download to finish."}), 429
 
     job_id = str(uuid.uuid4())
     job = Job(job_id)

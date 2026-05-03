@@ -100,7 +100,15 @@ document.getElementById('t-plus').addEventListener('click', () => {
   if (threads < 16) { threads++; tVal.textContent = threads; }
 });
 
+urlEl.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && MAX_SLOTS === 1) e.preventDefault();
+});
+
 urlEl.addEventListener('input', e => {
+  if (MAX_SLOTS === 1) {
+    const cleaned = e.target.value.replace(/\n/g, '');
+    if (cleaned !== e.target.value) e.target.value = cleaned;
+  }
   clearTimeout(titleTimer);
   resizeTa();
   updateMode();
@@ -441,7 +449,7 @@ document.getElementById('dl-form').addEventListener('submit', async e => {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ url, output: outputVal, threads, chunk_size: 65536 }),
-    }).then(r => r.json().then(d => ({ ok: r.ok, data: d, url }))).catch(() => null)
+    }).then(r => r.json().then(d => ({ ok: r.ok, status: r.status, data: d, url }))).catch(() => null)
   ));
 
   dlBtn.classList.remove('loading');
@@ -449,7 +457,11 @@ document.getElementById('dl-form').addEventListener('submit', async e => {
 
   let anyStarted = false;
   for (const result of results) {
-    if (!result || !result.ok) continue;
+    if (!result) continue;
+    if (!result.ok) {
+      if (result.data?.error) setUrlError(result.data.error);
+      continue;
+    }
     const driveId = extractDriveId(result.url);
     activeDownloads.add(driveId);
     const card = createCard(result.data.job_id);
