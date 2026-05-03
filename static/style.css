@@ -31,6 +31,7 @@ body {
     height: auto;
     min-height: 100dvh;
     overflow-y: auto;
+    overflow-x: hidden;
     padding: 0 16px;
     align-items: flex-start;
   }
@@ -323,56 +324,7 @@ body {
   white-space: nowrap;
 }
 
-.field { position: relative; }
 
-.inp {
-  width: 100%;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 9px;
-  color: var(--text);
-  font-family: var(--sans);
-  font-size: 0.92rem;
-  padding: 11px 16px;
-  outline: none;
-  transition: border-color 0.15s, box-shadow 0.15s;
-}
-
-.inp::placeholder { color: var(--dim); }
-
-.inp:focus {
-  border-color: var(--border-hi);
-  box-shadow: 0 0 0 3px rgba(66,133,244,0.08);
-}
-
-.name-inp {
-  font-family: var(--mono);
-  font-size: 0.78rem;
-  padding: 10px 70px 10px 12px;
-}
-
-.name-inp::placeholder {
-  font-family: var(--sans);
-  font-size: 0.77rem;
-}
-
-input[type="text"] { -webkit-appearance: none; appearance: none; }
-
-.ext-chip {
-  position: absolute;
-  right: 8px; top: 50%;
-  transform: translateY(-50%);
-  font-family: var(--mono);
-  font-size: 0.65rem;
-  color: var(--sub);
-  background: var(--bg);
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  padding: 2px 6px;
-  pointer-events: none;
-  white-space: nowrap;
-  display: none;
-}
 
 .stepper {
   display: flex;
@@ -459,6 +411,7 @@ input[type="text"] { -webkit-appearance: none; appearance: none; }
   padding: 14px 16px 14px 14px;
   animation: rise 0.22s cubic-bezier(0.16,1,0.3,1) both;
   transition: border-color 0.2s;
+  min-width: 0;
 }
 
 .dl-card.downloading { border-left-color: var(--accent); }
@@ -480,9 +433,6 @@ input[type="text"] { -webkit-appearance: none; appearance: none; }
   font-family: var(--mono);
   font-size: 0.80rem;
   color: var(--text);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
   min-width: 0;
   flex: 1;
 }
@@ -590,6 +540,7 @@ input[type="text"] { -webkit-appearance: none; appearance: none; }
 .downloads-section,
 .history-section {
   min-height: 0;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -680,9 +631,6 @@ input[type="text"] { -webkit-appearance: none; appearance: none; }
   color: var(--text);
   flex: 1;
   min-width: 0;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 .history-meta {

@@ -115,7 +115,12 @@ def index():
     if "user_id" not in session:
         session["user_id"] = str(uuid.uuid4())
         session.permanent = True
-    return render_template("index.html", slots=session.get("slot", _slot))
+    return render_template("index.html")
+
+
+@app.route("/config")
+def config():
+    return jsonify({"slots": session.get("slot", _slot)})
 
 
 @app.route("/activate", methods=["POST"])

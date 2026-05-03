@@ -1,3 +1,14 @@
+function midTrunc(name, max = 40) {
+  if (name.length <= max) return name;
+  const dot = name.lastIndexOf(".");
+  const ext = dot > 0 ? name.slice(dot) : "";
+  const base = dot > 0 ? name.slice(0, dot) : name;
+  const keep = max - ext.length - 3;
+  const head = Math.ceil(keep / 2);
+  const tail = Math.floor(keep / 2);
+  return base.slice(0, head) + "…" + base.slice(-tail) + ext;
+}
+
 function extractDriveId(url) {
   const m = url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
   return m ? m[1] : url;
@@ -27,12 +38,12 @@ function isMultiMode() {
   );
 }
 
+let MAX_SLOTS = 1;
 let titleReady = false;
 let threads = 8;
-let driveExt = "";
 let titleTimer = null;
 
-const GODMODE = MAX_SLOTS >= 999;
+let GODMODE = false;
 
 const activeDownloads = new Set();
 const completedDownloads = new Set();
@@ -40,18 +51,14 @@ const completedDownloads = new Set();
 const urlEl = document.getElementById("url");
 const dlBtn = document.getElementById("dl-btn");
 const btnText = document.getElementById("btn-text");
-const nameInp = document.getElementById("output");
-const extChip = document.getElementById("ext-chip");
 const urlFetch = document.getElementById("url-fetch");
 const urlError = document.getElementById("url-error");
 const urlWarn = document.getElementById("url-warn");
 const bottomRow = document.getElementById("bottom-row");
-const nameField = document.getElementById("name-field");
-const threadStepper = document.getElementById("thread-stepper");
 const tVal = document.getElementById("t-val");
 
 function enableGodmode() {
-  threadStepper.style.display = "";
+  bottomRow.style.display = "";
   document.getElementById("t-minus").addEventListener("click", () => {
     if (threads > 1) { threads--; tVal.textContent = threads; }
   });
@@ -77,9 +84,7 @@ function resizeTa() {
   urlEl.style.height = urlEl.scrollHeight + "px";
 }
 
-function updateMode() {
-  nameField.style.display = isMultiMode() ? "none" : "";
-}
+function updateMode() {}
 
 function setUrlError(msg) {
   urlError.textContent = msg;
@@ -134,10 +139,6 @@ urlEl.addEventListener("input", (e) => {
 
   if (!v) {
     titleReady = false;
-    driveExt = "";
-    nameInp.value = "";
-    nameInp.style.paddingRight = "16px";
-    extChip.style.display = "none";
     syncBtn();
     return;
   }
@@ -169,13 +170,6 @@ async function fetchTitle(url) {
       );
       return;
     }
-    const dot = data.title.lastIndexOf(".");
-    driveExt = dot !== -1 ? data.title.slice(dot) : "";
-    const base = dot !== -1 ? data.title.slice(0, dot) : data.title;
-    nameInp.value = base;
-    nameInp.style.paddingRight = driveExt ? "72px" : "16px";
-    extChip.textContent = driveExt;
-    extChip.style.display = driveExt ? "" : "none";
     titleReady = true;
     syncBtn();
   } catch {
@@ -281,7 +275,7 @@ function trackJob(jobId, card, driveId) {
       if (msg.message.startsWith("Downloading:")) {
         refs.tag.textContent = "Downloading";
         const fname = msg.message.replace("Downloading: ", "");
-        refs.name.textContent = fname;
+        refs.name.textContent = midTrunc(fname);
         refs.name.title = fname;
         card.classList.add("downloading");
         card.classList.remove("paused");
@@ -337,7 +331,7 @@ function trackJob(jobId, card, driveId) {
       refs.pbar.style.width = "100%";
       refs.tag.textContent = "Done";
       refs.tag.classList.add("green");
-      refs.name.textContent = msg.filename;
+      refs.name.textContent = midTrunc(msg.filename);
       refs.name.title = msg.filename;
       refs.spd.textContent = "";
       refs.sz.textContent = [
@@ -402,7 +396,7 @@ function renderHistoryEntry(entry) {
   el.className = "history-entry";
   el.id = `hentry-${entry.id}`;
   el.innerHTML = `
-    <div class="history-name">${esc(entry.filename)}</div>
+    <div class="history-name" title="${esc(entry.filename)}">${esc(midTrunc(entry.filename))}</div>
     <div class="history-meta">${entry.size ? fmtB(entry.size) + " · " : ""}${fmtDate(entry.downloaded_at)}</div>
     <button class="history-del" onclick="deleteHistoryEntry('${entry.id}')">×</button>
   `;
@@ -447,14 +441,9 @@ function dismissCard(jobId) {
 function resetForm() {
   urlEl.value = "";
   urlEl.style.height = "";
-  nameInp.value = "";
-  nameInp.style.paddingRight = "16px";
-  extChip.style.display = "none";
-  driveExt = "";
   titleReady = false;
   setUrlError("");
   setUrlWarn("");
-  updateMode();
   syncBtn();
   urlEl.focus();
 }
@@ -491,9 +480,7 @@ document.getElementById("dl-form").addEventListener("submit", async (e) => {
     return;
   }
 
-  const multi = urls.length > 1;
-  const base = nameInp.value.trim();
-  const outputVal = !multi && base ? base + driveExt : "";
+  const outputVal = "";
 
   dlBtn.disabled = true;
   dlBtn.classList.add("loading");
@@ -611,6 +598,19 @@ async function submitKey() {
     keyStatus.textContent = "Network error";
   }
 }
+
+fetch("/config")
+  .then((r) => r.json())
+  .then((data) => {
+    MAX_SLOTS = data.slots || 1;
+    GODMODE = MAX_SLOTS >= 999;
+    if (GODMODE) enableGodmode();
+    if (MAX_SLOTS > 1) {
+      urlEl.placeholder =
+        "Paste one or more Google Drive links, one per line";
+    }
+  })
+  .catch(() => {});
 
 syncBtn();
 loadHistory();

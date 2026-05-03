@@ -8,7 +8,7 @@ import time
 
 import requests
 
-from gdrive import extract_drive_id, get_file_size, get_video_url, sanitize_filename
+from gdrive import extract_drive_id, get_file_info, get_file_size, get_video_url, sanitize_filename
 import history
 from job import Job
 
@@ -67,7 +67,7 @@ def download_part_web(job, url, cookies, thread_lock, start, end, part_filename,
 
 
 def download_file_web(job: Job, url, cookies, filepath, chunk_size, max_threads):
-    total_size = get_file_size(url, cookies)
+    total_size, _ = get_file_info(url, cookies)
 
     if total_size == 0:
         _download_file_web_single(job, url, cookies, filepath, chunk_size)
@@ -231,13 +231,13 @@ def run_download(job_id, video_id_or_url, output_name, chunk_size, num_threads, 
             job.fail("Unable to retrieve video URL. Check that the link is correct and the file is publicly accessible.")
             return
 
-        _, drive_ext = os.path.splitext(title or "")
-        if output_name:
-            _, user_ext = os.path.splitext(output_name)
-            filename = output_name if user_ext else output_name + drive_ext
-        else:
-            filename = title
-        filename = sanitize_filename(filename)
+        _, mime_ext = get_file_info(video, cookies)
+        _, title_ext = os.path.splitext(title or "")
+        drive_ext = title_ext or mime_ext
+
+        filename = sanitize_filename(title or "video")
+        if not os.path.splitext(filename)[1]:
+            filename += drive_ext
 
         filepath = os.path.join(DOWNLOADS_DIR, f"{job_id}_{filename}")
         job.send({"type": "status", "message": f"Downloading: {filename}"})

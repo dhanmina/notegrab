@@ -26,9 +26,24 @@ def get_video_url(page_content: str) -> tuple[str, str]:
     return video, title
 
 
-def get_file_size(url: str, cookies: dict) -> int:
+_MIME_EXT = {
+    "video/mp4": ".mp4",
+    "video/webm": ".webm",
+    "video/x-matroska": ".mkv",
+    "video/quicktime": ".mov",
+    "video/x-msvideo": ".avi",
+}
+
+def get_file_info(url: str, cookies: dict) -> tuple[int, str]:
     response = requests.head(url, cookies=cookies, allow_redirects=True)
-    return int(response.headers.get('content-length', 0))
+    size = int(response.headers.get('content-length', 0))
+    mime = response.headers.get('content-type', '').split(';')[0].strip()
+    ext = _MIME_EXT.get(mime, ".mp4")
+    return size, ext
+
+def get_file_size(url: str, cookies: dict) -> int:
+    size, _ = get_file_info(url, cookies)
+    return size
 
 
 def sanitize_filename(name: str) -> str:
