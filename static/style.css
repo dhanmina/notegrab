@@ -270,23 +270,7 @@ body {
 .url-warn.on { display: block; }
 
 .bottom-row {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 8px;
   margin-bottom: 10px;
-  align-items: center;
-}
-
-@media (max-width: 400px) {
-  .bottom-row {
-    grid-template-columns: 1fr;
-  }
-  .stepper { width: fit-content; }
-}
-
-.bottom-row.threads-only {
-  grid-template-columns: auto;
-  justify-content: end;
 }
 
 .field { position: relative; }

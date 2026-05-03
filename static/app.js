@@ -28,7 +28,7 @@ function isMultiMode() {
 }
 
 let titleReady = false;
-let threads = 4;
+const threads = 8;
 let driveExt = "";
 let titleTimer = null;
 
@@ -45,7 +45,6 @@ const urlError = document.getElementById("url-error");
 const urlWarn = document.getElementById("url-warn");
 const bottomRow = document.getElementById("bottom-row");
 const nameField = document.getElementById("name-field");
-const tVal = document.getElementById("t-val");
 
 function syncBtn() {
   const urls = getValidUrls(urlEl.value);
@@ -63,9 +62,7 @@ function resizeTa() {
 }
 
 function updateMode() {
-  const multi = isMultiMode();
-  nameField.style.display = multi ? "none" : "";
-  bottomRow.classList.toggle("threads-only", multi);
+  nameField.style.display = isMultiMode() ? "none" : "";
 }
 
 function setUrlError(msg) {
@@ -102,19 +99,6 @@ function fmtEta(s) {
   if (s < 3600) return Math.ceil(s / 60) + "m left";
   return (s / 3600).toFixed(1) + "h left";
 }
-
-document.getElementById("t-minus").addEventListener("click", () => {
-  if (threads > 1) {
-    threads--;
-    tVal.textContent = threads;
-  }
-});
-document.getElementById("t-plus").addEventListener("click", () => {
-  if (threads < 16) {
-    threads++;
-    tVal.textContent = threads;
-  }
-});
 
 urlEl.addEventListener("keydown", (e) => {
   if (e.key === "Enter" && MAX_SLOTS === 1) e.preventDefault();

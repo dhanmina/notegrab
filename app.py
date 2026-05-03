@@ -115,7 +115,7 @@ def start():
     data = request.get_json()
     url = (data.get("url") or "").strip()
     output = (data.get("output") or "").strip()
-    num_threads = max(1, min(16, int(data.get("threads", 4))))
+    num_threads = max(1, min(8, int(data.get("threads", 8))))
     chunk_size = max(512, int(data.get("chunk_size", 1024 * 64)))
 
     if not url:
