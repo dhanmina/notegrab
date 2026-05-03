@@ -63,7 +63,6 @@ def _shutdown(signum, frame):
     sys.exit(0)
 
 signal.signal(signal.SIGTERM, _shutdown)
-signal.signal(signal.SIGHUP, _shutdown)
 
 _cleanup_downloads()
 atexit.register(_cleanup_downloads)
