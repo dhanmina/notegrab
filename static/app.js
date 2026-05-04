@@ -240,6 +240,10 @@ function setCardActions(jobId, state, refs) {
     act.innerHTML = `
       <a class="save-btn" href="/download/${jobId}">Save file</a>
       <button class="dismiss-btn" onclick="dismissCard('${jobId}')">Dismiss</button>`;
+  } else if (state === "error") {
+    act.innerHTML = `
+      <button class="ctrl-btn retry-btn" onclick="retryJob('${jobId}')">Retry</button>
+      <button class="dismiss-btn" onclick="dismissCard('${jobId}')">Dismiss</button>`;
   } else {
     act.innerHTML = `<button class="dismiss-btn" onclick="dismissCard('${jobId}')">Dismiss</button>`;
   }
@@ -472,6 +476,38 @@ async function clearHistory() {
   }
 }
 
+// ── Retry ──
+
+async function retryJob(jobId) {
+  const card = document.getElementById(`card-${jobId}`);
+  const url = card?.dataset.url;
+  if (!url) return;
+
+  dismissCard(jobId);
+
+  const result = await fetch("/start", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ url, output: "", threads, chunk_size: 65536 }),
+  })
+    .then((r) => r.json().then((d) => ({ ok: r.ok, data: d, url })))
+    .catch(() => null);
+
+  if (!result?.ok) {
+    if (result?.data?.error) setUrlError(result.data.error);
+    return;
+  }
+
+  const driveId = extractDriveId(url);
+  activeDownloads.add(driveId);
+  completedDownloads.delete(driveId);
+  const newCard = createCard(result.data.job_id);
+  newCard.dataset.driveId = driveId;
+  newCard.dataset.url = url;
+  trackJob(result.data.job_id, newCard, driveId);
+  updateDownloadsBadge();
+}
+
 // ── Expiry countdown ──
 
 function fmtExpiry(secs) {
@@ -586,6 +622,7 @@ document.getElementById("dl-form").addEventListener("submit", async (e) => {
     activeDownloads.add(driveId);
     const card = createCard(result.data.job_id);
     card.dataset.driveId = driveId;
+    card.dataset.url = result.url;
     trackJob(result.data.job_id, card, driveId);
     anyStarted = true;
   }
