@@ -215,6 +215,8 @@ def run_download(job_id, video_id_or_url, output_name, chunk_size, num_threads, 
 
     filepath = None
     try:
+        job.send({"type": "queued"})
+
         video_id = extract_drive_id(video_id_or_url)
         drive_url = f"https://drive.google.com/u/0/get_video_info?docid={video_id}&drive_originator_app=303"
 

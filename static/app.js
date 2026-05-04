@@ -252,7 +252,7 @@ function createCard(jobId) {
   card.innerHTML = `
     <div class="card-head">
       <div class="card-name" id="cname-${jobId}">—</div>
-      <div class="card-tag"  id="ctag-${jobId}">Queued</div>
+      <div class="card-tag"  id="ctag-${jobId}">Starting</div>
     </div>
     <div class="card-pbar">
       <div class="card-pbar-fill indeterminate" id="cpbar-${jobId}"></div>
@@ -304,7 +304,7 @@ function trackJob(jobId, card, driveId) {
 
   const handlers = {
     queued() {
-      refs.tag.textContent = "Queued";
+      refs.tag.textContent = "Starting";
       setCardActions(jobId, "queued", refs);
     },
     status(msg) {
@@ -317,7 +317,6 @@ function trackJob(jobId, card, driveId) {
         card.classList.remove("paused");
         setCardActions(jobId, "downloading", refs);
       } else {
-        refs.tag.textContent = msg.message;
         card.classList.remove("downloading");
         setCardActions(jobId, "fetching", refs);
       }
@@ -392,14 +391,22 @@ function trackJob(jobId, card, driveId) {
     },
   };
 
+  let reconnects = 0;
+
   es = new EventSource(`/progress/${jobId}`);
+
+  es.onopen = () => { reconnects = 0; };
+
   es.onmessage = (ev) => {
     const msg = JSON.parse(ev.data);
     if (msg.type === "ping") return;
     handlers[msg.type]?.(msg);
   };
+
   es.onerror = () => {
     if (finished) return;
+    reconnects++;
+    if (reconnects < 4) return;
     es.close();
     markError("Connection lost.");
   };
@@ -514,17 +521,17 @@ document.getElementById("dl-form").addEventListener("submit", async (e) => {
   dlBtn.classList.add("loading");
   btnText.textContent = "Starting…";
 
-  const results = await Promise.all(
-    urls.map((url) =>
-      fetch("/start", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url, output: "", threads, chunk_size: 65536 }),
-      })
-        .then((r) => r.json().then((d) => ({ ok: r.ok, status: r.status, data: d, url })))
-        .catch(() => null),
-    ),
-  );
+  const results = [];
+  for (const url of urls) {
+    const result = await fetch("/start", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ url, output: "", threads, chunk_size: 65536 }),
+    })
+      .then((r) => r.json().then((d) => ({ ok: r.ok, status: r.status, data: d, url })))
+      .catch(() => null);
+    results.push(result);
+  }
 
   dlBtn.classList.remove("loading");
   btnText.textContent = "Download";
@@ -598,7 +605,7 @@ async function submitKey() {
     const data = await r.json();
     if (data.slots > 1) {
       MAX_SLOTS = data.slots;
-      urlEl.placeholder = "Paste one or more Google Drive links, one per line";
+      urlEl.placeholder = "Paste links, one per line";
       document.getElementById("key-btn-label").textContent = "Activated";
       keyBtn.classList.remove("active");
       keyBtn.classList.add("unlocked");
@@ -623,7 +630,7 @@ fetch("/config")
     MAX_SLOTS = data.slots || 1;
     GODMODE   = MAX_SLOTS >= 999;
     if (GODMODE) enableGodmode();
-    if (MAX_SLOTS > 1) urlEl.placeholder = "Paste one or more Google Drive links, one per line";
+    if (MAX_SLOTS > 1) urlEl.placeholder = "Paste links, one per line";
   })
   .catch(() => {});
 
