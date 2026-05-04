@@ -599,9 +599,7 @@ async function submitKey() {
     if (data.slots > 1) {
       MAX_SLOTS = data.slots;
       urlEl.placeholder = "Paste one or more Google Drive links, one per line";
-      const visible = code.slice(0, Math.min(3, code.length)).toUpperCase();
-      const masked  = visible + "*".repeat(5 - visible.length);
-      document.getElementById("key-btn-label").textContent = masked;
+      document.getElementById("key-btn-label").textContent = "Activated";
       keyBtn.classList.remove("active");
       keyBtn.classList.add("unlocked");
       keyBtn.disabled = true;
