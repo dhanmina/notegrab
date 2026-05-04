@@ -19,6 +19,8 @@ PART_SIZE = 4 * 1024 * 1024  # 4 MB per part
 DOWNLOADS_DIR = os.path.join(os.path.dirname(__file__), "downloads")
 os.makedirs(DOWNLOADS_DIR, exist_ok=True)
 
+FILE_TTL = int(os.getenv("FILE_TTL_SECONDS", 3600))
+
 jobs: dict[str, Job] = {}
 jobs_lock = threading.Lock()
 
@@ -259,7 +261,7 @@ def run_download(job_id, video_id_or_url, output_name, chunk_size, num_threads, 
 
         if not job.error:
             logger.info("[job:%s] finished: %s", job_id, filename)
-            job.finish(filepath, filename)
+            job.finish(filepath, filename, FILE_TTL)
             history.append(filename, os.path.getsize(filepath), user_id)
 
     except Exception as e:

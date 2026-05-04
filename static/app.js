@@ -40,6 +40,7 @@ let _clearTimer = null;
 
 const activeDownloads = new Set();
 const completedDownloads = new Set();
+const expiryTimers = new Map();
 
 // ── DOM refs ──
 
@@ -372,6 +373,8 @@ function trackJob(jobId, card, driveId) {
       setCardActions(jobId, "done", refs);
       loadHistory();
       switchTab("downloads");
+
+      if (msg.ttl) startExpiry(jobId, card, msg.ttl);
     },
     error(msg) {
       es.close();
@@ -469,9 +472,45 @@ async function clearHistory() {
   }
 }
 
+// ── Expiry countdown ──
+
+function fmtExpiry(secs) {
+  if (secs <= 0)   return null;
+  if (secs < 60)   return "expires soon";
+  const mins = Math.round(secs / 60);
+  if (mins < 60)   return `expires in ${mins}m`;
+  const h = Math.floor(mins / 60), m = mins % 60;
+  return `expires in ${h}h${m > 0 ? ` ${m}m` : ""}`;
+}
+
+function startExpiry(jobId, card, ttl) {
+  const el = document.getElementById(`cspd-${jobId}`);
+  if (!el) return;
+  el.classList.add("card-expiry");
+
+  let remaining = ttl;
+
+  function tick() {
+    const label = fmtExpiry(remaining);
+    if (!label) {
+      dismissCard(jobId);
+      return;
+    }
+    el.textContent = label;
+    el.classList.toggle("soon", remaining < 300);
+    remaining -= 30;
+  }
+
+  tick();
+  const id = setInterval(tick, 30_000);
+  expiryTimers.set(jobId, id);
+}
+
 // ── Card dismiss ──
 
 function dismissCard(jobId) {
+  clearInterval(expiryTimers.get(jobId));
+  expiryTimers.delete(jobId);
   const card = document.getElementById(`card-${jobId}`);
   completedDownloads.delete(card?.dataset.driveId);
   fetch(`/delete/${jobId}`, { method: "DELETE" });

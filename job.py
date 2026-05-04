@@ -48,14 +48,14 @@ class Job:
     def send(self, data: dict):
         self.events.put(json.dumps(data))
 
-    def finish(self, filepath, filename):
+    def finish(self, filepath, filename, ttl=3600):
         if self.done:
             return
         self.filepath = filepath
         self.filename = filename
         self.done = True
         self.finished_at = time.monotonic()
-        self.send({"type": "done", "filename": filename})
+        self.send({"type": "done", "filename": filename, "ttl": ttl})
 
     def fail(self, message):
         if self.done:

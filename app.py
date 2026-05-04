@@ -19,7 +19,7 @@ try:
 except ImportError:
     pass
 
-from downloader import DOWNLOADS_DIR, jobs, jobs_lock, run_download
+from downloader import DOWNLOADS_DIR, FILE_TTL, jobs, jobs_lock, run_download
 from gdrive import extract_drive_id, get_video_url
 import history
 from job import Job
@@ -67,7 +67,6 @@ signal.signal(signal.SIGTERM, _shutdown)
 _cleanup_downloads()
 atexit.register(_cleanup_downloads)
 
-FILE_TTL = int(os.getenv("FILE_TTL_SECONDS", 3600))  # default 1 hour
 CLEANUP_INTERVAL = 300  # check every 5 minutes
 
 def _reap_expired_jobs():
