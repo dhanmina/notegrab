@@ -629,8 +629,13 @@ fetch("/config")
   .then((data) => {
     MAX_SLOTS = data.slots || 1;
     GODMODE   = MAX_SLOTS >= 999;
+    if (MAX_SLOTS > 1) {
+      urlEl.placeholder = "Paste links, one per line";
+      document.getElementById("key-btn-label").textContent = "Activated";
+      keyBtn.classList.add("unlocked");
+      keyBtn.disabled = true;
+    }
     if (GODMODE) enableGodmode();
-    if (MAX_SLOTS > 1) urlEl.placeholder = "Paste links, one per line";
   })
   .catch(() => {});
 
