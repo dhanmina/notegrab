@@ -239,6 +239,7 @@ function setCardActions(jobId, state, refs) {
   } else if (state === "done") {
     act.innerHTML = `
       <a class="save-btn" href="/download/${jobId}">Save file</a>
+      <button class="copy-btn" id="copy-${jobId}" onclick="copyLink('${jobId}')">Copy link</button>
       <button class="dismiss-btn" onclick="dismissCard('${jobId}')">Dismiss</button>`;
   } else if (state === "error") {
     act.innerHTML = `
@@ -473,6 +474,26 @@ async function clearHistory() {
       clearBtn.textContent = "Clear all";
       clearBtn.classList.remove("confirm");
     }, 3000);
+  }
+}
+
+// ── Copy link ──
+
+async function copyLink(jobId) {
+  const url = `${location.origin}/download/${jobId}`;
+  const btn = document.getElementById(`copy-${jobId}`);
+  try {
+    await navigator.clipboard.writeText(url);
+    if (btn) {
+      btn.textContent = "Copied!";
+      btn.classList.add("copied");
+      setTimeout(() => {
+        btn.textContent = "Copy link";
+        btn.classList.remove("copied");
+      }, 2000);
+    }
+  } catch {
+    if (btn) btn.textContent = "Failed";
   }
 }
 

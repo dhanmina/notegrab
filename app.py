@@ -245,8 +245,6 @@ def stop_job(job_id):
 
 @app.route("/download/<job_id>")
 def download(job_id):
-    if not _owns_job(job_id):
-        return jsonify({"error": "File not found"}), 404
     with jobs_lock:
         job = jobs.get(job_id)
     if not job or not job.filepath or not os.path.exists(job.filepath):
