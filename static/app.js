@@ -16,51 +16,82 @@ function extractDriveId(url) {
 
 function isValidDriveUrl(val) {
   if (!val) return false;
-  if (/drive\.google\.com\/(u\/\d+\/)?file\/d\/[a-zA-Z0-9_-]+/.test(val))
-    return true;
+  if (/drive\.google\.com\/(u\/\d+\/)?file\/d\/[a-zA-Z0-9_-]+/.test(val)) return true;
   if (/^[a-zA-Z0-9_-]{25,60}$/.test(val)) return true;
   return false;
 }
 
 function getValidUrls(text) {
-  return text
-    .split("\n")
-    .map((l) => l.trim())
-    .filter((l) => isValidDriveUrl(l));
+  return text.split("\n").map((l) => l.trim()).filter((l) => isValidDriveUrl(l));
 }
 
 function isMultiMode() {
-  return (
-    urlEl.value
-      .split("\n")
-      .map((l) => l.trim())
-      .filter(Boolean).length > 1
-  );
+  return urlEl.value.split("\n").map((l) => l.trim()).filter(Boolean).length > 1;
 }
+
+// ── State ──
 
 let MAX_SLOTS = 1;
 let titleReady = false;
 let threads = 8;
 let titleTimer = null;
-
 let GODMODE = false;
+let _clearTimer = null;
 
 const activeDownloads = new Set();
 const completedDownloads = new Set();
 
-const urlEl = document.getElementById("url");
-const dlBtn = document.getElementById("dl-btn");
-const btnText = document.getElementById("btn-text");
-const urlFetch = document.getElementById("url-fetch");
-const urlError = document.getElementById("url-error");
-const urlWarn = document.getElementById("url-warn");
+// ── DOM refs ──
+
+const urlEl     = document.getElementById("url");
+const dlBtn     = document.getElementById("dl-btn");
+const btnText   = document.getElementById("btn-text");
+const urlFetch  = document.getElementById("url-fetch");
+const urlError  = document.getElementById("url-error");
+const urlWarn   = document.getElementById("url-warn");
 const bottomRow = document.getElementById("bottom-row");
-const tVal = document.getElementById("t-val");
+const tVal      = document.getElementById("t-val");
+const clearBtn  = document.querySelector(".history-clear-btn");
+
+// ── Tabs ──
+
+function switchTab(name) {
+  document.querySelectorAll(".tab-btn").forEach((b) =>
+    b.classList.toggle("active", b.id === `tab-${name}`)
+  );
+  document.querySelectorAll(".tab-pane").forEach((p) =>
+    p.classList.toggle("active", p.id === `pane-${name}`)
+  );
+}
+
+// ── Badge & empty states ──
+
+function updateDownloadsBadge() {
+  const badge = document.getElementById("downloads-badge");
+  if (!badge) return;
+  const count = activeDownloads.size;
+  badge.textContent = count;
+  badge.style.display = count > 0 ? "" : "none";
+}
+
+function updateDownloadsEmpty() {
+  const list  = document.getElementById("downloads-list");
+  const empty = document.getElementById("downloads-empty");
+  if (empty) empty.style.display = list.children.length === 0 ? "" : "none";
+}
+
+function updateHistoryEmpty() {
+  const list  = document.getElementById("history-list");
+  const empty = document.getElementById("history-empty");
+  if (empty) empty.style.display = list.children.length === 0 ? "" : "none";
+}
+
+// ── Godmode ──
 
 function enableGodmode() {
   bottomRow.style.display = "";
   document.getElementById("t-minus").addEventListener("click", () => {
-    if (threads > 1) { threads--; tVal.textContent = threads; }
+    if (threads > 1)  { threads--; tVal.textContent = threads; }
   });
   document.getElementById("t-plus").addEventListener("click", () => {
     if (threads < 16) { threads++; tVal.textContent = threads; }
@@ -69,14 +100,15 @@ function enableGodmode() {
 
 if (GODMODE) enableGodmode();
 
+// ── Button sync ──
+
 function syncBtn() {
-  const urls = getValidUrls(urlEl.value);
+  const urls  = getValidUrls(urlEl.value);
   const multi = isMultiMode();
   const valid = multi ? urls.length > 0 : urls.length > 0 && titleReady;
   dlBtn.classList.toggle("valid", valid);
   dlBtn.disabled = !valid;
-  btnText.textContent =
-    multi && urls.length > 1 ? `Download ${urls.length}` : "Download";
+  btnText.textContent = multi && urls.length > 1 ? `Download ${urls.length}` : "Download";
 }
 
 function resizeTa() {
@@ -116,10 +148,12 @@ function fmtSpd(bps) {
 
 function fmtEta(s) {
   if (!isFinite(s) || s <= 0) return "";
-  if (s < 60) return Math.ceil(s) + "s left";
+  if (s < 60)   return Math.ceil(s) + "s left";
   if (s < 3600) return Math.ceil(s / 60) + "m left";
   return (s / 3600).toFixed(1) + "h left";
 }
+
+// ── URL input ──
 
 urlEl.addEventListener("keydown", (e) => {
   if (e.key === "Enter" && MAX_SLOTS === 1) e.preventDefault();
@@ -134,6 +168,7 @@ urlEl.addEventListener("input", (e) => {
   resizeTa();
   updateMode();
   setUrlError("");
+  urlEl.classList.remove("validated");
 
   const v = e.target.value.trim();
 
@@ -156,6 +191,7 @@ urlEl.addEventListener("input", (e) => {
 
 async function fetchTitle(url) {
   urlFetch.classList.add("on");
+  btnText.textContent = "Checking…";
   setUrlError("");
   try {
     const r = await fetch("/info", {
@@ -171,13 +207,17 @@ async function fetchTitle(url) {
       return;
     }
     titleReady = true;
+    urlEl.classList.add("validated");
     syncBtn();
   } catch {
     setUrlError("Network error — is the server running?");
   } finally {
     urlFetch.classList.remove("on");
+    syncBtn();
   }
 }
+
+// ── Job control ──
 
 async function controlJob(action, jobId) {
   await fetch(`/${action}/${jobId}`, { method: "POST" });
@@ -226,30 +266,29 @@ function createCard(jobId) {
     </div>
   `;
   list.insertBefore(card, list.firstChild);
+  updateDownloadsEmpty();
   return card;
 }
 
 function trackJob(jobId, card, driveId) {
   const refs = {
-    tag: document.getElementById(`ctag-${jobId}`),
+    tag:  document.getElementById(`ctag-${jobId}`),
     name: document.getElementById(`cname-${jobId}`),
     pbar: document.getElementById(`cpbar-${jobId}`),
-    spd: document.getElementById(`cspd-${jobId}`),
-    sz: document.getElementById(`csz-${jobId}`),
-    act: document.getElementById(`cact-${jobId}`),
+    spd:  document.getElementById(`cspd-${jobId}`),
+    sz:   document.getElementById(`csz-${jobId}`),
+    act:  document.getElementById(`cact-${jobId}`),
   };
 
   const t0 = Date.now();
-  let lb = 0,
-    lt = t0,
-    total = 0,
-    finished = false;
+  let lb = 0, lt = t0, total = 0, finished = false;
   let es;
 
   function finish(succeeded = false) {
     finished = true;
     activeDownloads.delete(driveId);
     if (succeeded) completedDownloads.add(driveId);
+    updateDownloadsBadge();
   }
 
   function markError(message) {
@@ -259,10 +298,7 @@ function trackJob(jobId, card, driveId) {
     refs.pbar.className = "card-pbar-fill";
     refs.pbar.style.width = "0%";
     card.classList.add("error");
-    card.insertAdjacentHTML(
-      "beforeend",
-      `<div class="card-err-msg">${esc(message)}</div>`,
-    );
+    card.insertAdjacentHTML("beforeend", `<div class="card-err-msg">${esc(message)}</div>`);
     setCardActions(jobId, "error", refs);
   }
 
@@ -288,17 +324,11 @@ function trackJob(jobId, card, driveId) {
     },
     progress(msg) {
       total = msg.total;
-      const now = Date.now(),
-        dt = (now - lt) / 1000,
-        db = msg.downloaded - lb;
+      const now = Date.now(), dt = (now - lt) / 1000, db = msg.downloaded - lb;
       if (dt > 0.3) {
         const bps = db / dt;
-        const eta =
-          bps > 0 && msg.total > 0
-            ? (msg.total - msg.downloaded) / bps
-            : Infinity;
-        refs.spd.textContent =
-          fmtSpd(bps) + (eta < Infinity ? "  ·  " + fmtEta(eta) : "");
+        const eta = bps > 0 && msg.total > 0 ? (msg.total - msg.downloaded) / bps : Infinity;
+        refs.spd.textContent = fmtSpd(bps) + (eta < Infinity ? "  ·  " + fmtEta(eta) : "");
         lb = msg.downloaded;
         lt = now;
       }
@@ -337,13 +367,12 @@ function trackJob(jobId, card, driveId) {
       refs.sz.textContent = [
         total ? fmtB(total) : "",
         ((Date.now() - t0) / 1000).toFixed(1) + "s",
-      ]
-        .filter(Boolean)
-        .join(" · ");
+      ].filter(Boolean).join(" · ");
       card.classList.add("done");
       card.classList.remove("paused");
       setCardActions(jobId, "done", refs);
       loadHistory();
+      switchTab("downloads");
     },
     error(msg) {
       es.close();
@@ -364,13 +393,11 @@ function trackJob(jobId, card, driveId) {
   };
 
   es = new EventSource(`/progress/${jobId}`);
-
   es.onmessage = (ev) => {
     const msg = JSON.parse(ev.data);
     if (msg.type === "ping") return;
     handlers[msg.type]?.(msg);
   };
-
   es.onerror = () => {
     if (finished) return;
     es.close();
@@ -378,14 +405,12 @@ function trackJob(jobId, card, driveId) {
   };
 }
 
+// ── History ──
+
 function fmtDate(iso) {
   const d = new Date(iso);
   return (
-    d.toLocaleDateString(undefined, {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-    }) +
+    d.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" }) +
     " · " +
     d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })
   );
@@ -403,16 +428,8 @@ function renderHistoryEntry(entry) {
   return el;
 }
 
-function updateHistoryEmpty() {
-  const list = document.getElementById("history-list");
-  const empty = document.getElementById("history-empty");
-  if (empty) empty.style.display = list.children.length === 0 ? "" : "none";
-}
-
 async function loadHistory() {
-  const entries = await fetch("/history")
-    .then((r) => r.json())
-    .catch(() => []);
+  const entries = await fetch("/history").then((r) => r.json()).catch(() => []);
   const list = document.getElementById("history-list");
   list.innerHTML = "";
   entries.forEach((e) => list.appendChild(renderHistoryEntry(e)));
@@ -426,21 +443,41 @@ async function deleteHistoryEntry(id) {
 }
 
 async function clearHistory() {
-  await fetch("/history", { method: "DELETE" });
-  document.getElementById("history-list").innerHTML = "";
-  updateHistoryEmpty();
+  if (_clearTimer) {
+    clearTimeout(_clearTimer);
+    _clearTimer = null;
+    clearBtn.textContent = "Clear all";
+    clearBtn.classList.remove("confirm");
+    await fetch("/history", { method: "DELETE" });
+    document.getElementById("history-list").innerHTML = "";
+    updateHistoryEmpty();
+  } else {
+    clearBtn.textContent = "Sure?";
+    clearBtn.classList.add("confirm");
+    _clearTimer = setTimeout(() => {
+      _clearTimer = null;
+      clearBtn.textContent = "Clear all";
+      clearBtn.classList.remove("confirm");
+    }, 3000);
+  }
 }
+
+// ── Card dismiss ──
 
 function dismissCard(jobId) {
   const card = document.getElementById(`card-${jobId}`);
   completedDownloads.delete(card?.dataset.driveId);
   fetch(`/delete/${jobId}`, { method: "DELETE" });
   card?.remove();
+  updateDownloadsEmpty();
 }
+
+// ── Form reset ──
 
 function resetForm() {
   urlEl.value = "";
   urlEl.style.height = "";
+  urlEl.classList.remove("validated");
   titleReady = false;
   setUrlError("");
   setUrlWarn("");
@@ -448,39 +485,30 @@ function resetForm() {
   urlEl.focus();
 }
 
+// ── Form submit ──
+
 document.getElementById("dl-form").addEventListener("submit", async (e) => {
   e.preventDefault();
 
   const allUrls = getValidUrls(urlEl.value);
   if (!allUrls.length) return;
 
-  const isDupe = (u) =>
-    activeDownloads.has(extractDriveId(u)) ||
-    completedDownloads.has(extractDriveId(u));
-  const dupes = allUrls.filter((u) => isDupe(u));
-  const urls = allUrls.filter((u) => !isDupe(u));
+  const isDupe  = (u) => activeDownloads.has(extractDriveId(u)) || completedDownloads.has(extractDriveId(u));
+  const dupes   = allUrls.filter((u) => isDupe(u));
+  const urls    = allUrls.filter((u) => !isDupe(u));
 
   if (dupes.length) {
-    const downloading = dupes.filter((u) =>
-      activeDownloads.has(extractDriveId(u)),
-    ).length;
-    const downloaded = dupes.filter((u) =>
-      completedDownloads.has(extractDriveId(u)),
-    ).length;
+    const downloading = dupes.filter((u) => activeDownloads.has(extractDriveId(u))).length;
+    const downloaded  = dupes.filter((u) => completedDownloads.has(extractDriveId(u))).length;
     const parts = [];
     if (downloading) parts.push(`${downloading} already downloading`);
-    if (downloaded) parts.push(`${downloaded} already downloaded`);
+    if (downloaded)  parts.push(`${downloaded} already downloaded`);
     setUrlWarn(`Skipped — ${parts.join(", ")}`);
   } else {
     setUrlWarn("");
   }
 
-  if (!urls.length) {
-    syncBtn();
-    return;
-  }
-
-  const outputVal = "";
+  if (!urls.length) { syncBtn(); return; }
 
   dlBtn.disabled = true;
   dlBtn.classList.add("loading");
@@ -491,16 +519,9 @@ document.getElementById("dl-form").addEventListener("submit", async (e) => {
       fetch("/start", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          url,
-          output: outputVal,
-          threads,
-          chunk_size: 65536,
-        }),
+        body: JSON.stringify({ url, output: "", threads, chunk_size: 65536 }),
       })
-        .then((r) =>
-          r.json().then((d) => ({ ok: r.ok, status: r.status, data: d, url })),
-        )
+        .then((r) => r.json().then((d) => ({ ok: r.ok, status: r.status, data: d, url })))
         .catch(() => null),
     ),
   );
@@ -523,19 +544,24 @@ document.getElementById("dl-form").addEventListener("submit", async (e) => {
     anyStarted = true;
   }
 
+  updateDownloadsBadge();
+
   if (!anyStarted) {
     setUrlError("Failed to start downloads. Is the server running?");
     syncBtn();
     return;
   }
 
+  switchTab("downloads");
   resetForm();
 });
 
-const keyBtn = document.getElementById("key-btn");
+// ── Key modal ──
+
+const keyBtn      = document.getElementById("key-btn");
 const keyBackdrop = document.getElementById("modal-backdrop");
-const keyInp = document.getElementById("key-inp");
-const keyStatus = document.getElementById("key-status");
+const keyInp      = document.getElementById("key-inp");
+const keyStatus   = document.getElementById("key-status");
 
 function openKeyModal() {
   if (keyBtn.disabled) return;
@@ -552,27 +578,19 @@ function closeKeyModal() {
 }
 
 keyBtn.addEventListener("click", openKeyModal);
-document
-  .getElementById("modal-cancel")
-  .addEventListener("click", closeKeyModal);
-keyBackdrop.addEventListener("click", (e) => {
-  if (e.target === keyBackdrop) closeKeyModal();
-});
-document.addEventListener("keydown", (e) => {
-  if (e.key === "Escape") closeKeyModal();
-});
+document.getElementById("modal-cancel").addEventListener("click", closeKeyModal);
+keyBackdrop.addEventListener("click", (e) => { if (e.target === keyBackdrop) closeKeyModal(); });
+document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeKeyModal(); });
 
 document.getElementById("key-submit").addEventListener("click", submitKey);
-keyInp.addEventListener("keydown", (e) => {
-  if (e.key === "Enter") submitKey();
-});
+keyInp.addEventListener("keydown", (e) => { if (e.key === "Enter") submitKey(); });
 
 async function submitKey() {
   const code = keyInp.value.trim();
   if (!code) return;
   keyStatus.textContent = "…";
   try {
-    const r = await fetch("/activate", {
+    const r    = await fetch("/activate", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ code }),
@@ -582,7 +600,7 @@ async function submitKey() {
       MAX_SLOTS = data.slots;
       urlEl.placeholder = "Paste one or more Google Drive links, one per line";
       const visible = code.slice(0, Math.min(3, code.length)).toUpperCase();
-      const masked = visible + "*".repeat(5 - visible.length);
+      const masked  = visible + "*".repeat(5 - visible.length);
       document.getElementById("key-btn-label").textContent = masked;
       keyBtn.classList.remove("active");
       keyBtn.classList.add("unlocked");
@@ -599,18 +617,18 @@ async function submitKey() {
   }
 }
 
+// ── Init ──
+
 fetch("/config")
   .then((r) => r.json())
   .then((data) => {
     MAX_SLOTS = data.slots || 1;
-    GODMODE = MAX_SLOTS >= 999;
+    GODMODE   = MAX_SLOTS >= 999;
     if (GODMODE) enableGodmode();
-    if (MAX_SLOTS > 1) {
-      urlEl.placeholder =
-        "Paste one or more Google Drive links, one per line";
-    }
+    if (MAX_SLOTS > 1) urlEl.placeholder = "Paste one or more Google Drive links, one per line";
   })
   .catch(() => {});
 
 syncBtn();
+updateDownloadsEmpty();
 loadHistory();
