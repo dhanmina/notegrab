@@ -106,6 +106,16 @@ function resetForm() {
   urlEl.focus();
 }
 
+// ── Password toggle ──
+
+function togglePassword() {
+  const inp = document.getElementById("password-inp");
+  const show = inp.type === "password";
+  inp.type = show ? "text" : "password";
+  document.getElementById("pw-eye").style.display     = show ? "none" : "";
+  document.getElementById("pw-eye-off").style.display = show ? ""     : "none";
+}
+
 // ── Source toggle ──
 
 function setSource(src) {
@@ -117,7 +127,7 @@ function setSource(src) {
   urlEl.placeholder =
     src === "zoom"  ? "Paste a Zoom recording link" :
     src === "gdocs" ? "Paste a Google Docs link" :
-                      "Paste a Google Drive link";
+                      "Paste a Google Drive video link";
   urlEl.value = "";
   urlEl.style.height = "";
   urlEl.classList.remove("validated", "invalid");

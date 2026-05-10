@@ -41,6 +41,8 @@
 
 .password-row { margin-bottom: 10px; animation: rise 0.18s ease both; }
 
+.password-wrap { position: relative; }
+
 .password-inp {
   width: 100%;
   background: var(--surface);
@@ -48,14 +50,32 @@
   border-radius: var(--r);
   color: var(--text);
   font-family: var(--sans);
-  font-size: 0.95rem;
-  padding: 14px 18px;
+  font-size: 1rem;
+  line-height: 1.5;
+  padding: 16px 48px 16px 18px;
+  min-height: 56px;
   outline: none;
   -webkit-appearance: none;
   transition: border-color 0.15s, box-shadow 0.15s;
 }
 .password-inp::placeholder { color: var(--dim); }
 .password-inp:focus { border-color: var(--border-hi); box-shadow: 0 0 0 4px rgba(66,133,244,0.08); }
+
+.pw-toggle {
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--dim);
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  transition: color 0.15s;
+}
+.pw-toggle:hover { color: var(--text); }
 
 /* ── URL input ── */
 
