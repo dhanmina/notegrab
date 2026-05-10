@@ -19,11 +19,11 @@ try:
 except ImportError:
     pass
 
-from downloader import DOWNLOADS_DIR, FILE_TTL, jobs, jobs_lock, run_download
-from gdrive import extract_drive_id, get_video_url
-import history
-from job import Job
-from zoom import is_zoom_url, get_zoom_video_info
+from core.downloader import DOWNLOADS_DIR, FILE_TTL, jobs, jobs_lock, run_download
+from core.gdrive import extract_drive_id, get_video_url
+from core import history
+from core.job import Job
+from core.zoom import is_zoom_url, get_zoom_video_info
 
 logging.basicConfig(
     level=logging.INFO,

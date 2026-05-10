@@ -8,7 +8,7 @@ import threading
 import requests
 from tqdm import tqdm
 
-from gdrive import extract_drive_id, get_file_size, get_video_url, sanitize_filename
+from core.gdrive import extract_drive_id, get_file_size, get_video_url, sanitize_filename
 
 
 def download_part(url, cookies, thread_lock, start, end, part_filename, chunk_size, pbar, gp_bar, verbose):

@@ -8,16 +8,16 @@ import time
 
 import requests
 
-from gdrive import extract_drive_id, get_file_info, get_file_size, get_video_url, sanitize_filename
-import history
-from job import Job
-from zoom import get_zoom_video_info
+from .gdrive import extract_drive_id, get_file_info, get_file_size, get_video_url, sanitize_filename
+from . import history
+from .job import Job
+from .zoom import get_zoom_video_info
 
 logger = logging.getLogger(__name__)
 
 PART_SIZE = 4 * 1024 * 1024  # 4 MB per part
 
-DOWNLOADS_DIR = os.path.join(os.path.dirname(__file__), "downloads")
+DOWNLOADS_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "downloads")
 os.makedirs(DOWNLOADS_DIR, exist_ok=True)
 
 FILE_TTL = int(os.getenv("FILE_TTL_SECONDS", 3600))
