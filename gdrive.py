@@ -34,8 +34,8 @@ _MIME_EXT = {
     "video/x-msvideo": ".avi",
 }
 
-def get_file_info(url: str, cookies: dict) -> tuple[int, str]:
-    response = requests.head(url, cookies=cookies, allow_redirects=True)
+def get_file_info(url: str, cookies: dict, extra_headers: dict = None) -> tuple[int, str]:
+    response = requests.head(url, cookies=cookies, headers=extra_headers or {}, allow_redirects=True)
     size = int(response.headers.get('content-length', 0))
     mime = response.headers.get('content-type', '').split(';')[0].strip()
     ext = _MIME_EXT.get(mime, ".mp4")
