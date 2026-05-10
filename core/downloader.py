@@ -21,7 +21,7 @@ PART_SIZE = 4 * 1024 * 1024  # 4 MB per part
 DOWNLOADS_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "downloads")
 os.makedirs(DOWNLOADS_DIR, exist_ok=True)
 
-FILE_TTL = int(os.getenv("FILE_TTL_SECONDS", 3600))
+FILE_TTL = 3600
 
 jobs: dict[str, Job] = {}
 jobs_lock = threading.Lock()

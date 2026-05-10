@@ -13,12 +13,6 @@ from datetime import timedelta
 import requests
 from flask import Flask, Response, jsonify, render_template, request, send_file, session
 
-try:
-    from dotenv import load_dotenv
-    load_dotenv()
-except ImportError:
-    pass
-
 from core.downloader import DOWNLOADS_DIR, FILE_TTL, jobs, jobs_lock, run_download
 from core.gdrive import extract_drive_id, get_video_url
 from core import history
@@ -33,7 +27,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
-app.secret_key = os.getenv("FLASK_SECRET", os.urandom(24))
+app.secret_key = os.urandom(24)
 app.permanent_session_lifetime = timedelta(days=30)
 
 
@@ -262,5 +256,4 @@ def delete_job(job_id):
 
 
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 8080))
-    app.run(host="0.0.0.0", debug=False, port=port)
+    app.run(host="0.0.0.0", debug=False, port=8080)
