@@ -1,5 +1,6 @@
 import io
 import logging
+import re
 
 from docx import Document
 from docx.shared import Pt, Emu, RGBColor
@@ -331,7 +332,18 @@ def _populate_footer_paragraph(fp) -> None:
     fr_label.font.color.rgb = RGBColor(0x80, 0x80, 0x80)
 
 
-def convert(url_or_id: str) -> bytes:
+def _extract_title(html: str) -> str:
+    m = re.search(r'<title>([^<]+)</title>', html, re.IGNORECASE)
+    if not m:
+        return ""
+    title = m.group(1)
+    for suffix in [" - Google Docs", " - Google Документи"]:
+        if title.endswith(suffix):
+            return title[:-len(suffix)].strip()
+    return title.strip()
+
+
+def convert(url_or_id: str) -> tuple[bytes, str]:
     log.info('Starting conversion for: %s', url_or_id)
 
     doc_id = extract_doc_id(url_or_id)
@@ -341,6 +353,9 @@ def convert(url_or_id: str) -> bytes:
 
     html = download_html(doc_id)
     log.info('Downloaded HTML (%d bytes)', len(html))
+
+    title = _extract_title(html)
+    log.info('Extracted title: %r', title)
 
     chunks = parse_chunks(html)
     if not chunks:
@@ -386,4 +401,4 @@ def convert(url_or_id: str) -> bytes:
     size = buf.tell()
     log.info('Saved document (%d bytes)', size)
     buf.seek(0)
-    return buf.read()
+    return buf.read(), title

@@ -67,9 +67,9 @@ document.getElementById("dl-form").addEventListener("submit", async (e) => {
   const url = getValidUrl(urlEl.value);
   if (!url) return;
 
-  const driveId = extractDriveId(url);
-  if (activeDownloads.has(driveId)) { setUrlWarn("Already downloading"); return; }
-  if (completedDownloads.has(driveId)) { setUrlWarn("Already downloaded"); return; }
+  const urlKey = currentSource === "gdrive" ? extractDriveId(url) : url;
+  if (activeDownloads.has(urlKey)) { setUrlWarn("Already downloading"); return; }
+  if (completedDownloads.has(urlKey)) { setUrlWarn("Already downloaded"); return; }
   setUrlWarn("");
 
   dlBtn.disabled = true;
@@ -97,13 +97,13 @@ document.getElementById("dl-form").addEventListener("submit", async (e) => {
     return;
   }
 
-  activeDownloads.add(driveId);
+  activeDownloads.add(urlKey);
   const card = createCard(result.data.job_id);
-  card.dataset.driveId  = driveId;
+  card.dataset.urlKey   = urlKey;
   card.dataset.url      = url;
   card.dataset.source   = currentSource;
   card.dataset.password = password;
-  trackJob(result.data.job_id, card, driveId);
+  trackJob(result.data.job_id, card, urlKey);
 
   updateDownloadsBadge();
   switchTab("downloads");

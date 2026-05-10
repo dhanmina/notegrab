@@ -267,8 +267,8 @@ def _run_gdocs(job_id, job, url, user_id):
         if job.is_stopped:
             return
 
-        docx_bytes = gdocs_convert(url)
-        filename = "document.docx"
+        docx_bytes, doc_title = gdocs_convert(url)
+        filename = sanitize_filename(doc_title or "document") + ".docx"
         filepath = os.path.join(DOWNLOADS_DIR, f"{job_id}_{filename}")
         with open(filepath, "wb") as f:
             f.write(docx_bytes)

@@ -50,7 +50,7 @@ function createCard(jobId) {
   return card;
 }
 
-function trackJob(jobId, card, driveId) {
+function trackJob(jobId, card, urlKey) {
   const refs = {
     tag:  document.getElementById(`ctag-${jobId}`),
     name: document.getElementById(`cname-${jobId}`),
@@ -66,8 +66,8 @@ function trackJob(jobId, card, driveId) {
 
   function finish(succeeded = false) {
     finished = true;
-    activeDownloads.delete(driveId);
-    if (succeeded) completedDownloads.add(driveId);
+    activeDownloads.delete(urlKey);
+    if (succeeded) completedDownloads.add(urlKey);
     updateDownloadsBadge();
   }
 
@@ -234,13 +234,14 @@ async function retryJob(jobId) {
     return;
   }
 
-  const driveId = extractDriveId(url);
-  activeDownloads.add(driveId);
-  completedDownloads.delete(driveId);
+  const urlKey = src === "gdrive" ? extractDriveId(url) : url;
+  activeDownloads.add(urlKey);
+  completedDownloads.delete(urlKey);
   const newCard = createCard(result.data.job_id);
-  newCard.dataset.driveId = driveId;
+  newCard.dataset.urlKey = urlKey;
   newCard.dataset.url = url;
-  trackJob(result.data.job_id, newCard, driveId);
+  newCard.dataset.source = src;
+  trackJob(result.data.job_id, newCard, urlKey);
   updateDownloadsBadge();
 }
 
@@ -275,7 +276,7 @@ function dismissCard(jobId) {
   clearInterval(expiryTimers.get(jobId));
   expiryTimers.delete(jobId);
   const card = document.getElementById(`card-${jobId}`);
-  completedDownloads.delete(card?.dataset.driveId);
+  completedDownloads.delete(card?.dataset.urlKey);
   fetch(`/delete/${jobId}`, { method: "DELETE" });
   card?.remove();
   updateDownloadsEmpty();
