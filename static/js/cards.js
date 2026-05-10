@@ -96,6 +96,10 @@ function trackJob(jobId, card, driveId) {
         card.classList.add("downloading");
         card.classList.remove("paused");
         setCardActions(jobId, "downloading", refs);
+      } else if (msg.message.startsWith("Converting")) {
+        refs.tag.textContent = "Converting";
+        card.classList.remove("downloading");
+        setCardActions(jobId, "fetching", refs);
       } else {
         card.classList.remove("downloading");
         setCardActions(jobId, "fetching", refs);

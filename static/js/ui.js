@@ -25,6 +25,9 @@ function getValidUrls(text) {
   if (currentSource === "zoom") {
     return text.split("\n").map((l) => l.trim()).filter((l) => isValidZoomUrl(l));
   }
+  if (currentSource === "gdocs") {
+    return text.split("\n").map((l) => l.trim()).filter((l) => isValidGdocsUrl(l));
+  }
   return text.split("\n").map((l) => l.trim()).filter((l) => isValidDriveUrl(l));
 }
 
@@ -109,8 +112,12 @@ function setSource(src) {
   currentSource = src;
   document.getElementById("src-gdrive").classList.toggle("active", src === "gdrive");
   document.getElementById("src-zoom").classList.toggle("active", src === "zoom");
+  document.getElementById("src-gdocs").classList.toggle("active", src === "gdocs");
   document.getElementById("password-row").style.display = src === "zoom" ? "" : "none";
-  urlEl.placeholder = src === "zoom" ? "Paste a Zoom recording link" : "Paste a Google Drive link";
+  urlEl.placeholder =
+    src === "zoom"  ? "Paste a Zoom recording link" :
+    src === "gdocs" ? "Paste a Google Docs link" :
+                      "Paste a Google Drive link";
   urlEl.value = "";
   urlEl.style.height = "";
   urlEl.classList.remove("validated", "invalid");

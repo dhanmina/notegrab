@@ -12,6 +12,7 @@ from .gdrive import extract_drive_id, get_file_info, get_file_size, get_video_ur
 from . import history
 from .job import Job
 from .zoom import get_zoom_video_info
+from converter import convert as gdocs_convert
 
 logger = logging.getLogger(__name__)
 
@@ -247,12 +248,47 @@ def run_download(job_id, video_id_or_url, output_name, chunk_size, num_threads, 
 
     if source == "zoom":
         _run_zoom(job_id, job, video_id_or_url, password, chunk_size, num_threads, user_id)
+    elif source == "gdocs":
+        _run_gdocs(job_id, job, video_id_or_url, user_id)
     else:
         _run_gdrive(job_id, job, video_id_or_url, chunk_size, num_threads, user_id)
 
     with active_job_ids_lock:
         if job_id in active_job_ids:
             active_job_ids.remove(job_id)
+
+
+def _run_gdocs(job_id, job, url, user_id):
+    filepath = None
+    try:
+        job.send({"type": "queued"})
+        job.send({"type": "status", "message": "Converting document..."})
+
+        if job.is_stopped:
+            return
+
+        docx_bytes = gdocs_convert(url)
+        filename = "document.docx"
+        filepath = os.path.join(DOWNLOADS_DIR, f"{job_id}_{filename}")
+        with open(filepath, "wb") as f:
+            f.write(docx_bytes)
+
+        if job.is_stopped:
+            try:
+                if filepath and os.path.exists(filepath):
+                    os.remove(filepath)
+            except OSError:
+                pass
+            return
+
+        logger.info("[job:%s] converted: %s", job_id, filename)
+        job.finish(filepath, filename, FILE_TTL)
+        history.append(filename, os.path.getsize(filepath), user_id)
+
+    except Exception as e:
+        if not job.is_stopped:
+            logger.exception("[job:%s] gdocs error: %s", job_id, e)
+            job.fail(str(e))
 
 
 def _run_gdrive(job_id, job, video_id_or_url, chunk_size, num_threads, user_id):

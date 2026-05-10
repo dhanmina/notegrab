@@ -16,6 +16,13 @@ urlEl.addEventListener("input", (e) => {
     return;
   }
 
+  if (currentSource === "gdocs") {
+    titleReady = isValidGdocsUrl(v);
+    if (titleReady) urlEl.classList.add("validated");
+    syncBtn();
+    return;
+  }
+
   if (isMultiMode()) { titleReady = true; syncBtn(); return; }
 
   titleReady = false;

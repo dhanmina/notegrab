@@ -116,6 +116,9 @@ def info():
     if is_zoom_url(url):
         return jsonify({"title": "Zoom Recording", "source": "zoom"})
 
+    if "docs.google.com/document/d/" in url:
+        return jsonify({"title": "Google Document", "source": "gdocs"})
+
     try:
         video_id = extract_drive_id(url)
         drive_url = f"https://drive.google.com/u/0/get_video_info?docid={video_id}&drive_originator_app=303"

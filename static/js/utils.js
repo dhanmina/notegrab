@@ -25,6 +25,10 @@ function isValidZoomUrl(val) {
   return /https?:\/\/[^/]*\.?zoom\.us\/rec\//.test(val);
 }
 
+function isValidGdocsUrl(val) {
+  return /docs\.google\.com\/document\/d\/[a-zA-Z0-9_-]+/.test(val);
+}
+
 function esc(s) {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
