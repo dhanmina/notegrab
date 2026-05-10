@@ -25,18 +25,6 @@ import history
 from job import Job
 from zoom import is_zoom_url, get_zoom_video_info
 
-def _load_seats() -> dict:
-    try:
-        return json.loads(os.getenv("SEAT_KEYS", "{}"))
-    except Exception:
-        return {}
-
-def _resolve_slot() -> int:
-    key = os.getenv("APP_INSTANCE_ID", "").upper()
-    return _load_seats().get(key, 1)
-
-_slot = _resolve_slot()
-
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(message)s",
@@ -118,19 +106,6 @@ def index():
     return render_template("index.html")
 
 
-@app.route("/config")
-def config():
-    return jsonify({"slots": session.get("slot", _slot)})
-
-
-@app.route("/activate", methods=["POST"])
-def activate():
-    code = (request.get_json() or {}).get("code", "").strip().upper()
-    slots = _load_seats().get(code, 1)
-    session["slot"] = slots
-    return jsonify({"slots": slots})
-
-
 @app.route("/info", methods=["POST"])
 def info():
     data = request.get_json()
@@ -162,20 +137,13 @@ def start():
     output = (data.get("output") or "").strip()
     source = (data.get("source") or "gdrive").strip()
     password = (data.get("password") or "").strip()
-    max_threads = 16 if session.get("slot", _slot) >= 999 else 8
-    num_threads = max(1, min(max_threads, int(data.get("threads", 8))))
-    chunk_size = max(512, int(data.get("chunk_size", 1024 * 64)))
+    num_threads = 16
+    chunk_size = 1024 * 64
 
     if not url:
         return jsonify({"error": "URL is required"}), 400
 
     user_jobs = session.get("jobs", [])
-    with jobs_lock:
-        active = sum(1 for jid in user_jobs
-                     if jid in jobs and not jobs[jid].is_stopped
-                     and not jobs[jid].error and not jobs[jid].done)
-    if active >= session.get("slot", _slot):
-        return jsonify({"error": "Download limit reached. Please wait for the current download to finish."}), 429
 
     job_id = str(uuid.uuid4())
     job = Job(job_id)

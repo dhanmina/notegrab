@@ -11,15 +11,6 @@
 
       <header class="app-header">
         <span class="app-name">viddownload</span>
-        <button class="key-btn" id="key-btn" type="button">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
-            stroke="currentColor" stroke-width="2.2"
-            stroke-linecap="round" stroke-linejoin="round">
-            <rect x="3" y="11" width="18" height="11" rx="2" />
-            <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-          </svg>
-          <span id="key-btn-label">Activate</span>
-        </button>
       </header>
 
       <section class="input-section">
@@ -71,20 +62,6 @@
             />
           </div>
 
-          <div class="bottom-row" id="bottom-row" style="display:none">
-            <div class="stepper-row">
-              <div class="stepper-label">
-                <span class="stepper-name">Threads</span>
-                <span class="stepper-desc">Parallel download connections</span>
-              </div>
-              <div class="stepper">
-                <button class="step-btn" type="button" id="t-minus">−</button>
-                <span class="step-val" id="t-val">8</span>
-                <button class="step-btn" type="button" id="t-plus">+</button>
-              </div>
-            </div>
-          </div>
-
           <button class="dl-btn" id="dl-btn" type="submit" disabled>
             <span class="btn-spinner"></span>
             <span id="btn-text">Download</span>
@@ -117,26 +94,6 @@
           <div id="history-list" class="history-list"></div>
         </div>
 
-      </div>
-    </div>
-
-    <div class="modal-backdrop" id="modal-backdrop">
-      <div class="modal" id="key-modal">
-        <div class="modal-handle"></div>
-        <div class="modal-title">Activation Key</div>
-        <input
-          class="key-inp"
-          id="key-inp"
-          type="text"
-          placeholder="Enter key"
-          autocomplete="off"
-          spellcheck="false"
-        />
-        <div class="modal-actions">
-          <button class="modal-cancel" id="modal-cancel" type="button">Cancel</button>
-          <button class="key-submit"   id="key-submit"   type="button">Unlock</button>
-        </div>
-        <span class="key-status" id="key-status"></span>
       </div>
     </div>
 

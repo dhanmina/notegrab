@@ -67,11 +67,8 @@ function isMultiMode() {
 
 // ── State ──
 
-let MAX_SLOTS = 1;
 let titleReady = false;
-let threads = 8;
 let titleTimer = null;
-let GODMODE = false;
 let _clearTimer = null;
 
 const activeDownloads = new Set();
@@ -86,8 +83,6 @@ const btnText   = document.getElementById("btn-text");
 const urlFetch  = document.getElementById("url-fetch");
 const urlError  = document.getElementById("url-error");
 const urlWarn   = document.getElementById("url-warn");
-const bottomRow = document.getElementById("bottom-row");
-const tVal      = document.getElementById("t-val");
 const clearBtn  = document.querySelector(".history-clear-btn");
 
 // ── Tabs ──
@@ -123,19 +118,6 @@ function updateHistoryEmpty() {
   if (empty) empty.style.display = list.children.length === 0 ? "" : "none";
 }
 
-// ── Godmode ──
-
-function enableGodmode() {
-  bottomRow.style.display = "";
-  document.getElementById("t-minus").addEventListener("click", () => {
-    if (threads > 1)  { threads--; tVal.textContent = threads; }
-  });
-  document.getElementById("t-plus").addEventListener("click", () => {
-    if (threads < 16) { threads++; tVal.textContent = threads; }
-  });
-}
-
-if (GODMODE) enableGodmode();
 
 // ── Button sync ──
 
@@ -192,15 +174,7 @@ function fmtEta(s) {
 
 // ── URL input ──
 
-urlEl.addEventListener("keydown", (e) => {
-  if (e.key === "Enter" && MAX_SLOTS === 1) e.preventDefault();
-});
-
 urlEl.addEventListener("input", (e) => {
-  if (MAX_SLOTS === 1 && currentSource !== "zoom") {
-    const cleaned = e.target.value.replace(/\n/g, "");
-    if (cleaned !== e.target.value) e.target.value = cleaned;
-  }
   clearTimeout(titleTimer);
   resizeTa();
   updateMode();
@@ -555,7 +529,7 @@ async function retryJob(jobId) {
   const result = await fetch("/start", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ url, output: "", threads, chunk_size: 65536, source: src, password: pw }),
+    body: JSON.stringify({ url, output: "", threads: 16, chunk_size: 65536, source: src, password: pw }),
   })
     .then((r) => r.json().then((d) => ({ ok: r.ok, data: d, url })))
     .catch(() => null);
@@ -672,7 +646,7 @@ document.getElementById("dl-form").addEventListener("submit", async (e) => {
     const result = await fetch("/start", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ url, output: "", threads, chunk_size: 65536, source: currentSource, password }),
+      body: JSON.stringify({ url, output: "", threads: 16, chunk_size: 65536, source: currentSource, password }),
     })
       .then((r) => r.json().then((d) => ({ ok: r.ok, status: r.status, data: d, url })))
       .catch(() => null);
@@ -711,82 +685,6 @@ document.getElementById("dl-form").addEventListener("submit", async (e) => {
   switchTab("downloads");
   resetForm();
 });
-
-// ── Key modal ──
-
-const keyBtn      = document.getElementById("key-btn");
-const keyBackdrop = document.getElementById("modal-backdrop");
-const keyInp      = document.getElementById("key-inp");
-const keyStatus   = document.getElementById("key-status");
-
-function openKeyModal() {
-  if (keyBtn.disabled) return;
-  keyBackdrop.classList.add("open");
-  keyBtn.classList.add("active");
-  keyStatus.textContent = "";
-  keyInp.value = "";
-  setTimeout(() => keyInp.focus(), 50);
-}
-
-function closeKeyModal() {
-  keyBackdrop.classList.remove("open");
-  keyBtn.classList.remove("active");
-}
-
-keyBtn.addEventListener("click", openKeyModal);
-document.getElementById("modal-cancel").addEventListener("click", closeKeyModal);
-keyBackdrop.addEventListener("click", (e) => { if (e.target === keyBackdrop) closeKeyModal(); });
-document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeKeyModal(); });
-
-document.getElementById("key-submit").addEventListener("click", submitKey);
-keyInp.addEventListener("keydown", (e) => { if (e.key === "Enter") submitKey(); });
-
-async function submitKey() {
-  const code = keyInp.value.trim();
-  if (!code) return;
-  keyStatus.textContent = "…";
-  try {
-    const r    = await fetch("/activate", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ code }),
-    });
-    const data = await r.json();
-    if (data.slots > 1) {
-      MAX_SLOTS = data.slots;
-      urlEl.placeholder = "Paste links, one per line";
-      document.getElementById("key-btn-label").textContent = "Activated";
-      keyBtn.classList.remove("active");
-      keyBtn.classList.add("unlocked");
-      keyBtn.disabled = true;
-      if (data.slots >= 999) enableGodmode();
-      closeKeyModal();
-    } else {
-      keyStatus.style.color = "var(--red)";
-      keyStatus.textContent = "Invalid key";
-    }
-  } catch {
-    keyStatus.style.color = "var(--red)";
-    keyStatus.textContent = "Network error";
-  }
-}
-
-// ── Init ──
-
-fetch("/config")
-  .then((r) => r.json())
-  .then((data) => {
-    MAX_SLOTS = data.slots || 1;
-    GODMODE   = MAX_SLOTS >= 999;
-    if (MAX_SLOTS > 1) {
-      urlEl.placeholder = "Paste links, one per line";
-      document.getElementById("key-btn-label").textContent = "Activated";
-      keyBtn.classList.add("unlocked");
-      keyBtn.disabled = true;
-    }
-    if (GODMODE) enableGodmode();
-  })
-  .catch(() => {});
 
 syncBtn();
 updateDownloadsEmpty();
