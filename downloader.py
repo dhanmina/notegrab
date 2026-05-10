@@ -70,6 +70,10 @@ def download_part_web(job, url, cookies, thread_lock, start, end, part_filename,
             if downloaded >= (end - start + 1):
                 break
 
+    expected = end - start + 1
+    if downloaded < expected:
+        raise Exception(f"Part incomplete: got {downloaded}/{expected} bytes")
+
 
 def download_file_web(job: Job, url, cookies, filepath, chunk_size, max_threads, extra_headers=None):
     total_size, _ = get_file_info(url, cookies, extra_headers)
@@ -109,15 +113,30 @@ def download_file_web(job: Job, url, cookies, filepath, chunk_size, max_threads,
             if job.is_stopped:
                 work_queue.task_done()
                 return
-            try:
-                download_part_web(job, url, cookies, thread_lock, start, end,
-                                  part_files[part_idx], chunk_size, progress_callback,
-                                  extra_headers=extra_headers)
-            except Exception as e:
-                logger.error("[job:%s] part %d error: %s", job.job_id, part_idx, e, exc_info=True)
-                errors.append(e)
-            finally:
-                work_queue.task_done()
+            last_error = None
+            for attempt in range(3):
+                if job.is_stopped:
+                    break
+                try:
+                    download_part_web(job, url, cookies, thread_lock, start, end,
+                                      part_files[part_idx], chunk_size, progress_callback,
+                                      extra_headers=extra_headers)
+                    last_error = None
+                    break
+                except Exception as e:
+                    last_error = e
+                    logger.warning("[job:%s] part %d attempt %d failed: %s", job.job_id, part_idx, attempt + 1, e)
+                    try:
+                        if os.path.exists(part_files[part_idx]):
+                            os.remove(part_files[part_idx])
+                    except OSError:
+                        pass
+                    if attempt < 2 and not job.is_stopped:
+                        time.sleep(2 ** attempt)
+            if last_error and not job.is_stopped:
+                logger.error("[job:%s] part %d failed after 3 attempts: %s", job.job_id, part_idx, last_error)
+                errors.append(last_error)
+            work_queue.task_done()
 
     def current_rank():
         with active_job_ids_lock:
@@ -204,6 +223,13 @@ def _download_file_web_single(job: Job, url, cookies, filepath, chunk_size):
                 f.write(chunk)
                 downloaded += len(chunk)
                 job.send({"type": "progress", "downloaded": downloaded, "total": total_size})
+
+    if total_size > 0 and downloaded < total_size:
+        job.fail(f"Download incomplete: got {downloaded}/{total_size} bytes.")
+        try:
+            os.remove(filepath)
+        except OSError:
+            pass
 
 
 def run_download(job_id, video_id_or_url, output_name, chunk_size, num_threads, user_id="", source="gdrive", password=""):
