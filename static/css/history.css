@@ -1,0 +1,77 @@
+/* ── History ── */
+
+.history-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 4px;
+}
+
+.history-clear-btn {
+  background: none;
+  border: none;
+  color: var(--dim);
+  font-size: 0.72rem;
+  font-family: var(--sans);
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 5px;
+  min-height: 32px;
+  transition: color 0.12s, background 0.12s;
+}
+.history-clear-btn:hover   { color: var(--red); }
+.history-clear-btn.confirm { color: var(--red); font-weight: 600; }
+
+.history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.history-entry {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 8px;
+  margin: 0 -8px;
+  border-bottom: 1px solid var(--border);
+  border-radius: 8px;
+  animation: rise 0.18s ease both;
+  transition: background 0.12s;
+}
+.history-entry:hover      { background: var(--surface-2); }
+.history-entry:last-child { border-bottom: none; }
+
+.history-name {
+  font-family: var(--mono);
+  font-size: 0.76rem;
+  color: var(--text);
+  flex: 1;
+  min-width: 0;
+  line-height: 1.4;
+}
+
+.history-meta {
+  font-size: 0.67rem;
+  color: var(--sub);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.history-del {
+  background: none;
+  border: none;
+  color: var(--dim);
+  font-size: 0.88rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 6px;
+  flex-shrink: 0;
+  border-radius: 5px;
+  min-width: 32px;
+  min-height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.12s, background 0.12s;
+}
+.history-del:hover { color: var(--red); background: rgba(239,68,68,0.08); }

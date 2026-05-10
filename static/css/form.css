@@ -1,0 +1,155 @@
+/* ── Source toggle ── */
+
+.source-toggle {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 14px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  padding: 4px;
+}
+
+.source-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 9px 14px;
+  background: none;
+  border: none;
+  border-radius: calc(var(--r) - 3px);
+  color: var(--sub);
+  font-size: 0.8rem;
+  font-weight: 600;
+  font-family: var(--sans);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.source-btn svg { flex-shrink: 0; opacity: 0.7; transition: opacity 0.15s; }
+.source-btn:hover { color: var(--text); }
+.source-btn:hover svg { opacity: 1; }
+.source-btn.active {
+  background: var(--surface-3);
+  color: var(--text);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.25);
+}
+.source-btn.active svg { opacity: 1; }
+
+/* ── Password field ── */
+
+.password-row { margin-bottom: 10px; animation: rise 0.18s ease both; }
+
+.password-inp {
+  width: 100%;
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-radius: var(--r);
+  color: var(--text);
+  font-family: var(--sans);
+  font-size: 0.95rem;
+  padding: 14px 18px;
+  outline: none;
+  -webkit-appearance: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.password-inp::placeholder { color: var(--dim); }
+.password-inp:focus { border-color: var(--border-hi); box-shadow: 0 0 0 4px rgba(66,133,244,0.08); }
+
+/* ── URL input ── */
+
+.input-section { padding-bottom: 16px; }
+
+.url-field { position: relative; margin-bottom: 8px; }
+
+.url-ta {
+  width: 100%;
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-radius: var(--r);
+  color: var(--text);
+  font-family: var(--sans);
+  font-size: 1rem;
+  padding: 16px 48px 16px 18px;
+  outline: none;
+  resize: none;
+  overflow: hidden;
+  line-height: 1.5;
+  min-height: 56px;
+  display: block;
+  -webkit-appearance: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.url-ta::placeholder { color: var(--dim); }
+.url-ta:focus     { border-color: var(--border-hi); box-shadow: 0 0 0 4px rgba(66,133,244,0.08); }
+.url-ta.invalid   { border-color: rgba(239,68,68,0.6); }
+.url-ta.validated { border-color: rgba(34,197,94,0.5); box-shadow: 0 0 0 4px rgba(34,197,94,0.07); }
+
+.url-fetch {
+  position: absolute;
+  right: 18px; top: 21px;
+  width: 14px; height: 14px;
+  border: 1.5px solid var(--border-hi);
+  border-top-color: var(--sub);
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s;
+}
+.url-fetch.on { opacity: 1; }
+
+.url-error, .url-warn {
+  font-size: 0.75rem;
+  margin-top: 7px;
+  display: none;
+  animation: rise 0.15s ease both;
+}
+.url-error { color: var(--red); }
+.url-warn  { color: var(--amber); }
+.url-error.on, .url-warn.on { display: block; }
+
+/* ── Download button ── */
+
+.dl-btn {
+  width: 100%;
+  min-height: 52px;
+  padding: 14px;
+  background: var(--surface);
+  color: var(--dim);
+  border: 1.5px solid var(--border);
+  border-radius: var(--r);
+  font-family: var(--sans);
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: not-allowed;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  -webkit-appearance: none;
+  transition: background 0.2s, border-color 0.2s, color 0.15s, opacity 0.12s, transform 0.08s, box-shadow 0.2s;
+}
+.dl-btn.valid {
+  background: var(--accent);
+  color: #fff;
+  border-color: transparent;
+  cursor: pointer;
+  font-weight: 700;
+  box-shadow: 0 4px 18px rgba(66,133,244,0.38);
+  animation: btn-pop 0.22s cubic-bezier(0.16,1,0.3,1) both;
+}
+.dl-btn.valid:hover  { opacity: 0.9; }
+.dl-btn.valid:active { transform: scale(0.99); box-shadow: none; }
+.dl-btn:disabled     { cursor: not-allowed; }
+
+.btn-spinner {
+  width: 14px; height: 14px;
+  border: 2px solid rgba(255,255,255,0.3);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.55s linear infinite;
+  display: none;
+}
+.dl-btn.loading .btn-spinner { display: block; }
