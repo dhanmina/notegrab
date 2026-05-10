@@ -9,8 +9,17 @@ logger = logging.getLogger(__name__)
 
 _HEADERS = {
     "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
     "Accept-Language": "en-US,en;q=0.9",
+    "Accept-Encoding": "gzip, deflate, br",
+    "Sec-Ch-Ua": '"Chromium";v="124", "Google Chrome";v="124", "Not-A.Brand";v="99"',
+    "Sec-Ch-Ua-Mobile": "?0",
+    "Sec-Ch-Ua-Platform": '"macOS"',
+    "Sec-Fetch-Dest": "document",
+    "Sec-Fetch-Mode": "navigate",
+    "Sec-Fetch-Site": "none",
+    "Sec-Fetch-User": "?1",
+    "Upgrade-Insecure-Requests": "1",
 }
 
 
@@ -105,10 +114,20 @@ def _validate_passwd(session: requests.Session, base_url: str, meeting_id: str,
         "passwd": passwd,
         "action": action,
     }
+    headers = {
+        "Content-Type": "application/x-www-form-urlencoded",
+        "X-Requested-With": "XMLHttpRequest",
+        "Sec-Fetch-Dest": "empty",
+        "Sec-Fetch-Mode": "cors",
+        "Sec-Fetch-Site": "same-origin",
+    }
     try:
-        resp = session.post(endpoint, data=payload)
-        return bool(resp.json().get("status"))
-    except Exception:
+        resp = session.post(endpoint, data=payload, headers=headers)
+        body = resp.json()
+        logger.info("validate_passwd status=%d body=%s", resp.status_code, body)
+        return bool(body.get("status"))
+    except Exception as e:
+        logger.warning("validate_passwd exception: %s", e)
         return False
 
 
@@ -127,22 +146,29 @@ def _resolve_share_to_play(session: requests.Session, base_url: str,
     """
     resp = session.get(share_url)
     html = resp.text
+    logger.info("share page status=%d url=%s", resp.status_code, resp.url)
+    logger.debug("share page snippet: %s", html[:1000])
 
     # HTML password form on share page
     form = _find_form(html)
+    logger.info("share page password form found: %s", form is not None)
     if form is not None:
         if not password:
             raise ValueError("This recording is password-protected")
-        _validate_passwd(session, base_url,
+        ok = _validate_passwd(session, base_url,
                          form.get("meetId") or form.get("fileId", ""),
                          password,
                          form.get("useWhichPasswd") == "meeting",
                          form.get("action", ""))
+        logger.info("password form validation result: %s", ok)
         resp = session.get(share_url)
         html = resp.text
+        logger.debug("share page after auth snippet: %s", html[:500])
 
     page_data = _parse_page_data(html)
+    logger.info("page_data parsed: %s", page_data is not None)
     if not page_data:
+        logger.error("could not parse window.__data__ from share page. url=%s snippet=%s", share_url, html[:2000])
         raise ValueError("Could not parse Zoom share page — page structure may have changed")
 
     meeting_id = page_data.get("meetingId")
@@ -158,7 +184,9 @@ def _resolve_meeting_to_play(session: requests.Session, base_url: str,
     Given a meetingId, authenticate via API and return the play URL.
     """
     share_info_url = f"{base_url}nws/recording/1.0/play/share-info/{meeting_id}"
-    result = session.get(share_info_url).json().get("result", {})
+    resp = session.get(share_info_url)
+    result = resp.json().get("result", {})
+    logger.info("share-info status=%d componentName=%s", resp.status_code, result.get("componentName"))
 
     if result.get("componentName") == "need-password":
         if not password:
@@ -172,10 +200,14 @@ def _resolve_meeting_to_play(session: requests.Session, base_url: str,
         )
         if not ok:
             raise ValueError("Wrong password")
-        result = session.get(share_info_url).json().get("result", {})
+        resp2 = session.get(share_info_url)
+        result = resp2.json().get("result", {})
+        logger.info("share-info after auth: status=%d componentName=%s redirectUrl=%r",
+                    resp2.status_code, result.get("componentName"), result.get("redirectUrl"))
 
     redirect_path = result.get("redirectUrl")
-    if not redirect_path or result.get("componentName") == "need-password":
+    logger.info("redirect_path=%r", redirect_path)
+    if not redirect_path:
         raise ValueError("Authentication failed or recording unavailable")
 
     play_url = urljoin(base_url, redirect_path)
@@ -199,30 +231,56 @@ def get_zoom_video_info(url: str, password: str = "") -> tuple[str, str, dict, s
 
     # ── Determine URL type and get play URL ──
     if '/rec/share/' in path:
-        play_url = _resolve_share_to_play(session, base, url, password)
+        # Zoom's SPA no longer embeds window.__data__ — try API with share token first
+        share_token = path.rstrip('/').split('/')[-1]
+        logger.info("share URL: trying API with token prefix %s…", share_token[:16])
+        try:
+            play_url = _resolve_meeting_to_play(session, base, share_token, password)
+        except Exception as e:
+            logger.info("share URL: API approach failed (%s), falling back to HTML scrape", e)
+            play_url = _resolve_share_to_play(session, base, url, password)
 
     elif '/rec/component-page' in path:
-        # URL has meetingId + componentName in query params
         qs = parse_qs(parsed.query)
         meeting_id = (qs.get("meetingId") or [""])[0]
+        origin = (qs.get("originRequestUrl") or [""])[0]
         if not meeting_id:
             raise ValueError("Could not extract meetingId from component-page URL")
+        # Seed session cookies from the original share URL before API calls
+        if origin:
+            logger.info("component-page: seeding cookies from origin: %s", origin)
+            try:
+                session.get(origin, timeout=15)
+            except Exception:
+                pass
         play_url = _resolve_meeting_to_play(session, base, meeting_id, password)
 
+        # Zoom returns a captcha redirect (component-page loop) when bot detection triggers.
+        # After validate_passwd, the session has auth cookies — try play/info directly.
+        if '/rec/component-page' in urlparse(play_url).path:
+            logger.info("component-page: captcha redirect — trying direct play/info with meetingId")
+            play_info = _get_play_info(session, base, meeting_id)
+            for key in ("viewMp4WithshareUrl", "viewMp4Url", "shareMp4Url"):
+                if play_info.get(key):
+                    title = play_info.get("meet", {}).get("topic") or "Zoom Recording"
+                    logger.info("Direct play/info succeeded: %s", title)
+                    return play_info[key], title, dict(session.cookies), base
+            raise ValueError("Zoom blocked the request — try again in a moment or use a different network")
+
     elif '/rec/play/' in path or '/rec/recording/play/' in path:
-        # Play URL — might need password on play page itself, or ready to use
         play_url = url
         if "continueMode" not in play_url:
             play_url += ("&" if "?" in play_url else "?") + "continueMode=true"
-
-        # Check if there's an originRequestUrl we can use for auth
-        qs = parse_qs(parsed.query)
-        origin = (qs.get("originRequestUrl") or [""])[0]
-        if origin and '/rec/share/' in origin and password:
+        # Authenticate via originRequestUrl if present and password provided
+        qs_play = parse_qs(parsed.query)
+        origin = (qs_play.get("originRequestUrl") or [""])[0]
+        if origin and password:
+            share_token = urlparse(origin).path.rstrip('/').split('/')[-1]
+            logger.info("play URL: authenticating via origin share token %s…", share_token[:16])
             try:
-                play_url = _resolve_share_to_play(session, base, origin, password)
-            except Exception:
-                pass  # fall through to direct play URL
+                _resolve_meeting_to_play(session, base, share_token, password)
+            except Exception as e:
+                logger.info("play URL: origin auth failed (%s), continuing unauthenticated", e)
 
     else:
         raise ValueError("Unrecognised Zoom recording URL")

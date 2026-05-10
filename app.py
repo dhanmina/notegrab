@@ -140,6 +140,17 @@ def start():
     if not url:
         return jsonify({"error": "URL is required"}), 400
 
+    prefetched = None
+    if source == "zoom":
+        try:
+            prefetched = get_zoom_video_info(url, password)
+        except ValueError as e:
+            logger.warning("/start zoom auth failed for %s: %s", url, e)
+            return jsonify({"error": str(e)}), 400
+        except Exception as e:
+            logger.exception("/start zoom pre-auth unexpected error for %s: %s", url, e)
+            return jsonify({"error": "Could not connect to Zoom"}), 500
+
     user_jobs = session.get("jobs", [])
 
     job_id = str(uuid.uuid4())
@@ -155,6 +166,7 @@ def start():
     threading.Thread(
         target=run_download,
         args=(job_id, url, output, chunk_size, num_threads, _user_id(), source, password),
+        kwargs={"prefetched": prefetched},
         daemon=True,
     ).start()
 
@@ -220,7 +232,9 @@ def download(job_id):
     with jobs_lock:
         job = jobs.get(job_id)
     if not job or not job.filepath or not os.path.exists(job.filepath):
+        logger.warning("/download file not found for job %s", job_id)
         return jsonify({"error": "File not found"}), 404
+    logger.info("/download serving %s for job %s", job.filename, job_id)
     return send_file(job.filepath, as_attachment=True, download_name=job.filename)
 
 

@@ -233,7 +233,7 @@ def _download_file_web_single(job: Job, url, cookies, filepath, chunk_size):
             pass
 
 
-def run_download(job_id, video_id_or_url, output_name, chunk_size, num_threads, user_id="", source="gdrive", password=""):
+def run_download(job_id, video_id_or_url, output_name, chunk_size, num_threads, user_id="", source="gdrive", password="", prefetched=None):
     with jobs_lock:
         job = jobs[job_id]
 
@@ -247,7 +247,7 @@ def run_download(job_id, video_id_or_url, output_name, chunk_size, num_threads, 
     logger.info("[job:%s] starting %s download for %s (rank=%d)", job_id, source, video_id_or_url, rank)
 
     if source == "zoom":
-        _run_zoom(job_id, job, video_id_or_url, password, chunk_size, num_threads, user_id)
+        _run_zoom(job_id, job, video_id_or_url, password, chunk_size, num_threads, user_id, prefetched=prefetched)
     elif source == "gdocs":
         _run_gdocs(job_id, job, video_id_or_url, user_id)
     else:
@@ -347,16 +347,18 @@ def _run_gdrive(job_id, job, video_id_or_url, chunk_size, num_threads, user_id):
             job.fail(str(e))
 
 
-def _run_zoom(job_id, job, share_url, password, chunk_size, num_threads, user_id):
+def _run_zoom(job_id, job, share_url, password, chunk_size, num_threads, user_id, prefetched=None):
     filepath = None
     try:
         job.send({"type": "queued"})
-        job.send({"type": "status", "message": "Authenticating with Zoom..."})
 
-        if job.is_stopped:
-            return
-
-        video_url, title, cookies, base_url = get_zoom_video_info(share_url, password)
+        if prefetched:
+            video_url, title, cookies, base_url = prefetched
+        else:
+            job.send({"type": "status", "message": "Authenticating with Zoom..."})
+            if job.is_stopped:
+                return
+            video_url, title, cookies, base_url = get_zoom_video_info(share_url, password)
 
         extra_headers = {"Referer": base_url}
         filename = sanitize_filename(title or "zoom_recording") + ".mp4"

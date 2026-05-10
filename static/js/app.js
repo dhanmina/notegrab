@@ -1,3 +1,10 @@
+// ── Password input ──
+
+document.getElementById("password-inp").addEventListener("input", () => {
+  setUrlError("");
+  setUrlWarn("");
+});
+
 // ── URL input ──
 
 urlEl.addEventListener("input", (e) => {
@@ -39,13 +46,15 @@ async function fetchTitle(url) {
     });
     const data = await r.json();
     if (!r.ok || !data.title) {
+      console.error("[info] failed for", url, data);
       setUrlError("Could not fetch video info. Make sure the file is a video and is publicly accessible.");
       return;
     }
     titleReady = true;
     urlEl.classList.add("validated");
     syncBtn();
-  } catch {
+  } catch (err) {
+    console.error("[info] network error:", err);
     setUrlError("Network error — is the server running?");
   } finally {
     urlFetch.classList.remove("on");
@@ -74,7 +83,7 @@ document.getElementById("dl-form").addEventListener("submit", async (e) => {
 
   dlBtn.disabled = true;
   dlBtn.classList.add("loading");
-  btnText.textContent = "Starting…";
+  btnText.textContent = currentSource === "zoom" ? "Checking…" : "Starting…";
 
   const password = currentSource === "zoom"
     ? (document.getElementById("password-inp")?.value || "")
@@ -86,12 +95,13 @@ document.getElementById("dl-form").addEventListener("submit", async (e) => {
     body: JSON.stringify({ url, output: "", threads: 16, chunk_size: 65536, source: currentSource, password }),
   })
     .then((r) => r.json().then((d) => ({ ok: r.ok, data: d })))
-    .catch(() => null);
+    .catch((err) => { console.error("[start] network error:", err); return null; });
 
   dlBtn.classList.remove("loading");
   btnText.textContent = "Download";
 
   if (!result?.ok) {
+    console.error("[start] failed:", result?.data);
     setUrlError(result?.data?.error || "Failed to start download. Is the server running?");
     syncBtn();
     return;

@@ -188,6 +188,7 @@ function trackJob(jobId, card, urlKey) {
   es.onerror = () => {
     if (finished) return;
     reconnects++;
+    console.error(`[sse] job ${jobId} error (reconnect ${reconnects})`);
     if (reconnects < 4) return;
     es.close();
     markError("Connection lost.");

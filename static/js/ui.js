@@ -70,6 +70,9 @@ function syncBtn() {
   const valid = !!getValidUrl(urlEl.value) && titleReady;
   dlBtn.classList.toggle("valid", valid);
   dlBtn.disabled = !valid;
+  if (!dlBtn.classList.contains("loading")) {
+    btnText.textContent = "Download";
+  }
 }
 
 function setUrlError(msg) {
