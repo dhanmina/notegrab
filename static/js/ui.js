@@ -21,18 +21,11 @@ const clearBtn = document.querySelector(".history-clear-btn");
 
 // ── URL helpers ──
 
-function getValidUrls(text) {
-  if (currentSource === "zoom") {
-    return text.split("\n").map((l) => l.trim()).filter((l) => isValidZoomUrl(l));
-  }
-  if (currentSource === "gdocs") {
-    return text.split("\n").map((l) => l.trim()).filter((l) => isValidGdocsUrl(l));
-  }
-  return text.split("\n").map((l) => l.trim()).filter((l) => isValidDriveUrl(l));
-}
-
-function isMultiMode() {
-  return urlEl.value.split("\n").map((l) => l.trim()).filter(Boolean).length > 1;
+function getValidUrl(text) {
+  const v = text.trim();
+  if (currentSource === "zoom")  return isValidZoomUrl(v)  ? v : null;
+  if (currentSource === "gdocs") return isValidGdocsUrl(v) ? v : null;
+  return isValidDriveUrl(v) ? v : null;
 }
 
 // ── Tabs ──
@@ -63,25 +56,20 @@ function updateDownloadsEmpty() {
 }
 
 function updateHistoryEmpty() {
-  const list  = document.getElementById("history-list");
-  const empty = document.getElementById("history-empty");
-  if (empty) empty.style.display = list.children.length === 0 ? "" : "none";
+  const list    = document.getElementById("history-list");
+  const empty   = document.getElementById("history-empty");
+  const toolbar = document.querySelector(".history-toolbar");
+  const hasItems = list.children.length > 0;
+  if (empty)   empty.style.display   = hasItems ? "none" : "";
+  if (toolbar) toolbar.style.display = hasItems ? ""     : "none";
 }
 
 // ── Button & input state ──
 
 function syncBtn() {
-  const urls  = getValidUrls(urlEl.value);
-  const multi = isMultiMode();
-  const valid = multi ? urls.length > 0 : urls.length > 0 && titleReady;
+  const valid = !!getValidUrl(urlEl.value) && titleReady;
   dlBtn.classList.toggle("valid", valid);
   dlBtn.disabled = !valid;
-  btnText.textContent = multi && urls.length > 1 ? `Download ${urls.length}` : "Download";
-}
-
-function resizeTa() {
-  urlEl.style.height = "auto";
-  urlEl.style.height = urlEl.scrollHeight + "px";
 }
 
 function setUrlError(msg) {
@@ -97,7 +85,6 @@ function setUrlWarn(msg) {
 
 function resetForm() {
   urlEl.value = "";
-  urlEl.style.height = "";
   urlEl.classList.remove("validated");
   titleReady = false;
   setUrlError("");
@@ -127,9 +114,8 @@ function setSource(src) {
   urlEl.placeholder =
     src === "zoom"  ? "Paste a Zoom recording link" :
     src === "gdocs" ? "Paste a Google Docs link" :
-                      "Paste a Google Drive video link";
+                      "Paste a Google Drive link";
   urlEl.value = "";
-  urlEl.style.height = "";
   urlEl.classList.remove("validated", "invalid");
   titleReady = false;
   setUrlError("");

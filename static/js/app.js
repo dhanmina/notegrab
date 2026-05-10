@@ -2,7 +2,6 @@
 
 urlEl.addEventListener("input", (e) => {
   clearTimeout(titleTimer);
-  resizeTa();
   setUrlError("");
   urlEl.classList.remove("validated");
 
@@ -22,8 +21,6 @@ urlEl.addEventListener("input", (e) => {
     syncBtn();
     return;
   }
-
-  if (isMultiMode()) { titleReady = true; syncBtn(); return; }
 
   titleReady = false;
   syncBtn();
@@ -67,25 +64,13 @@ async function controlJob(action, jobId) {
 document.getElementById("dl-form").addEventListener("submit", async (e) => {
   e.preventDefault();
 
-  const allUrls = getValidUrls(urlEl.value);
-  if (!allUrls.length) return;
+  const url = getValidUrl(urlEl.value);
+  if (!url) return;
 
-  const isDupe = (u) => activeDownloads.has(extractDriveId(u)) || completedDownloads.has(extractDriveId(u));
-  const dupes  = allUrls.filter(isDupe);
-  const urls   = allUrls.filter((u) => !isDupe(u));
-
-  if (dupes.length) {
-    const downloading = dupes.filter((u) => activeDownloads.has(extractDriveId(u))).length;
-    const downloaded  = dupes.filter((u) => completedDownloads.has(extractDriveId(u))).length;
-    const parts = [];
-    if (downloading) parts.push(`${downloading} already downloading`);
-    if (downloaded)  parts.push(`${downloaded} already downloaded`);
-    setUrlWarn(`Skipped — ${parts.join(", ")}`);
-  } else {
-    setUrlWarn("");
-  }
-
-  if (!urls.length) { syncBtn(); return; }
+  const driveId = extractDriveId(url);
+  if (activeDownloads.has(driveId)) { setUrlWarn("Already downloading"); return; }
+  if (completedDownloads.has(driveId)) { setUrlWarn("Already downloaded"); return; }
+  setUrlWarn("");
 
   dlBtn.disabled = true;
   dlBtn.classList.add("loading");
@@ -95,47 +80,32 @@ document.getElementById("dl-form").addEventListener("submit", async (e) => {
     ? (document.getElementById("password-inp")?.value || "")
     : "";
 
-  const results = [];
-  for (const url of urls) {
-    const result = await fetch("/start", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ url, output: "", threads: 16, chunk_size: 65536, source: currentSource, password }),
-    })
-      .then((r) => r.json().then((d) => ({ ok: r.ok, status: r.status, data: d, url })))
-      .catch(() => null);
-    results.push(result);
-  }
+  const result = await fetch("/start", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ url, output: "", threads: 16, chunk_size: 65536, source: currentSource, password }),
+  })
+    .then((r) => r.json().then((d) => ({ ok: r.ok, data: d })))
+    .catch(() => null);
 
   dlBtn.classList.remove("loading");
   btnText.textContent = "Download";
 
-  let anyStarted = false;
-  for (const result of results) {
-    if (!result) continue;
-    if (!result.ok) {
-      if (result.data?.error) setUrlError(result.data.error);
-      continue;
-    }
-    const driveId = extractDriveId(result.url);
-    activeDownloads.add(driveId);
-    const card = createCard(result.data.job_id);
-    card.dataset.driveId = driveId;
-    card.dataset.url     = result.url;
-    card.dataset.source  = currentSource;
-    card.dataset.password = password;
-    trackJob(result.data.job_id, card, driveId);
-    anyStarted = true;
-  }
-
-  updateDownloadsBadge();
-
-  if (!anyStarted) {
-    setUrlError("Failed to start downloads. Is the server running?");
+  if (!result?.ok) {
+    setUrlError(result?.data?.error || "Failed to start download. Is the server running?");
     syncBtn();
     return;
   }
 
+  activeDownloads.add(driveId);
+  const card = createCard(result.data.job_id);
+  card.dataset.driveId  = driveId;
+  card.dataset.url      = url;
+  card.dataset.source   = currentSource;
+  card.dataset.password = password;
+  trackJob(result.data.job_id, card, driveId);
+
+  updateDownloadsBadge();
   switchTab("downloads");
   resetForm();
 });

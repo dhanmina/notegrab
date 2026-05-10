@@ -62,22 +62,25 @@ body {
 
 .app-header {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: space-between;
-  padding: 22px 0 20px;
+  justify-content: center;
+  padding: 40px 0 28px;
 }
 
 .app-name {
-  font-size: 0.72rem;
-  font-weight: 700;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--sub);
+  font-size: 2rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  background: linear-gradient(135deg, #f0f0f2 30%, #88889a 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 
 /* ── Desktop ── */
 
 @media (min-width: 600px) {
   .app { padding: 0 24px 48px; }
-  .app-header { padding-top: 32px; }
+  .app-header { padding-top: 48px; }
 }
