@@ -11,6 +11,7 @@ import requests
 from gdrive import extract_drive_id, get_file_info, get_file_size, get_video_url, sanitize_filename
 import history
 from job import Job
+from zoom import get_zoom_video_info
 
 logger = logging.getLogger(__name__)
 
@@ -28,8 +29,10 @@ active_job_ids: list[str] = []
 active_job_ids_lock = threading.Lock()
 
 
-def download_part_web(job, url, cookies, thread_lock, start, end, part_filename, chunk_size, progress_callback):
+def download_part_web(job, url, cookies, thread_lock, start, end, part_filename, chunk_size, progress_callback, extra_headers=None):
     headers = {"Range": f"bytes={start}-{end}"}
+    if extra_headers:
+        headers.update(extra_headers)
     downloaded = 0
 
     if os.path.exists(part_filename):
@@ -68,8 +71,8 @@ def download_part_web(job, url, cookies, thread_lock, start, end, part_filename,
                 break
 
 
-def download_file_web(job: Job, url, cookies, filepath, chunk_size, max_threads):
-    total_size, _ = get_file_info(url, cookies)
+def download_file_web(job: Job, url, cookies, filepath, chunk_size, max_threads, extra_headers=None):
+    total_size, _ = get_file_info(url, cookies, extra_headers)
 
     if total_size == 0:
         _download_file_web_single(job, url, cookies, filepath, chunk_size)
@@ -108,7 +111,8 @@ def download_file_web(job: Job, url, cookies, filepath, chunk_size, max_threads)
                 return
             try:
                 download_part_web(job, url, cookies, thread_lock, start, end,
-                                  part_files[part_idx], chunk_size, progress_callback)
+                                  part_files[part_idx], chunk_size, progress_callback,
+                                  extra_headers=extra_headers)
             except Exception as e:
                 logger.error("[job:%s] part %d error: %s", job.job_id, part_idx, e, exc_info=True)
                 errors.append(e)
@@ -202,7 +206,7 @@ def _download_file_web_single(job: Job, url, cookies, filepath, chunk_size):
                 job.send({"type": "progress", "downloaded": downloaded, "total": total_size})
 
 
-def run_download(job_id, video_id_or_url, output_name, chunk_size, num_threads, user_id=""):
+def run_download(job_id, video_id_or_url, output_name, chunk_size, num_threads, user_id="", source="gdrive", password=""):
     with jobs_lock:
         job = jobs[job_id]
 
@@ -213,8 +217,19 @@ def run_download(job_id, video_id_or_url, output_name, chunk_size, num_threads, 
         active_job_ids.append(job_id)
         rank = len(active_job_ids) - 1
 
-    logger.info("[job:%s] starting download for %s (rank=%d, max_threads=%d)", job_id, video_id_or_url, rank, num_threads)
+    logger.info("[job:%s] starting %s download for %s (rank=%d)", job_id, source, video_id_or_url, rank)
 
+    if source == "zoom":
+        _run_zoom(job_id, job, video_id_or_url, password, chunk_size, num_threads, user_id)
+    else:
+        _run_gdrive(job_id, job, video_id_or_url, chunk_size, num_threads, user_id)
+
+    with active_job_ids_lock:
+        if job_id in active_job_ids:
+            active_job_ids.remove(job_id)
+
+
+def _run_gdrive(job_id, job, video_id_or_url, chunk_size, num_threads, user_id):
     filepath = None
     try:
         job.send({"type": "queued"})
@@ -268,7 +283,44 @@ def run_download(job_id, video_id_or_url, output_name, chunk_size, num_threads, 
         if not job.is_stopped:
             logger.exception("[job:%s] unexpected error: %s", job_id, e)
             job.fail(str(e))
-    finally:
-        with active_job_ids_lock:
-            if job_id in active_job_ids:
-                active_job_ids.remove(job_id)
+
+
+def _run_zoom(job_id, job, share_url, password, chunk_size, num_threads, user_id):
+    filepath = None
+    try:
+        job.send({"type": "queued"})
+        job.send({"type": "status", "message": "Authenticating with Zoom..."})
+
+        if job.is_stopped:
+            return
+
+        video_url, title, cookies, base_url = get_zoom_video_info(share_url, password)
+
+        extra_headers = {"Referer": base_url}
+        filename = sanitize_filename(title or "zoom_recording") + ".mp4"
+        filepath = os.path.join(DOWNLOADS_DIR, f"{job_id}_{filename}")
+
+        job.send({"type": "status", "message": f"Downloading: {filename}"})
+
+        if job.is_stopped:
+            return
+
+        download_file_web(job, video_url, cookies, filepath, chunk_size, num_threads, extra_headers=extra_headers)
+
+        if job.is_stopped:
+            try:
+                if filepath and os.path.exists(filepath):
+                    os.remove(filepath)
+            except OSError:
+                pass
+            return
+
+        if not job.error:
+            logger.info("[job:%s] finished: %s", job_id, filename)
+            job.finish(filepath, filename, FILE_TTL)
+            history.append(filename, os.path.getsize(filepath), user_id)
+
+    except Exception as e:
+        if not job.is_stopped:
+            logger.exception("[job:%s] zoom error: %s", job_id, e)
+            job.fail(str(e))

@@ -21,8 +21,44 @@ function isValidDriveUrl(val) {
   return false;
 }
 
+function isValidZoomUrl(val) {
+  return /https?:\/\/[^/]*\.?zoom\.us\/rec\//.test(val);
+}
+
 function getValidUrls(text) {
+  if (currentSource === "zoom") {
+    return text.split("\n").map((l) => l.trim()).filter((l) => isValidZoomUrl(l));
+  }
   return text.split("\n").map((l) => l.trim()).filter((l) => isValidDriveUrl(l));
+}
+
+// ── Source ──
+
+let currentSource = "gdrive";
+
+function setSource(src) {
+  currentSource = src;
+
+  document.getElementById("src-gdrive").classList.toggle("active", src === "gdrive");
+  document.getElementById("src-zoom").classList.toggle("active", src === "zoom");
+
+  const pwRow = document.getElementById("password-row");
+  pwRow.style.display = src === "zoom" ? "" : "none";
+
+  urlEl.placeholder = src === "zoom"
+    ? "Paste a Zoom recording link"
+    : "Paste a Google Drive link";
+
+  // reset state
+  urlEl.value = "";
+  urlEl.style.height = "";
+  urlEl.classList.remove("validated", "invalid");
+  titleReady = false;
+  setUrlError("");
+  setUrlWarn("");
+  clearTimeout(titleTimer);
+  syncBtn();
+  urlEl.focus();
 }
 
 function isMultiMode() {
@@ -161,7 +197,7 @@ urlEl.addEventListener("keydown", (e) => {
 });
 
 urlEl.addEventListener("input", (e) => {
-  if (MAX_SLOTS === 1) {
+  if (MAX_SLOTS === 1 && currentSource !== "zoom") {
     const cleaned = e.target.value.replace(/\n/g, "");
     if (cleaned !== e.target.value) e.target.value = cleaned;
   }
@@ -175,6 +211,14 @@ urlEl.addEventListener("input", (e) => {
 
   if (!v) {
     titleReady = false;
+    syncBtn();
+    return;
+  }
+
+  // Zoom: enable immediately on valid URL, no title fetch needed
+  if (currentSource === "zoom") {
+    titleReady = isValidZoomUrl(v);
+    if (titleReady) urlEl.classList.add("validated");
     syncBtn();
     return;
   }
@@ -506,10 +550,12 @@ async function retryJob(jobId) {
 
   dismissCard(jobId);
 
+  const src = card?.dataset.source || "gdrive";
+  const pw  = card?.dataset.password || "";
   const result = await fetch("/start", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ url, output: "", threads, chunk_size: 65536 }),
+    body: JSON.stringify({ url, output: "", threads, chunk_size: 65536, source: src, password: pw }),
   })
     .then((r) => r.json().then((d) => ({ ok: r.ok, data: d, url })))
     .catch(() => null);
@@ -617,12 +663,16 @@ document.getElementById("dl-form").addEventListener("submit", async (e) => {
   dlBtn.classList.add("loading");
   btnText.textContent = "Starting…";
 
+  const password = currentSource === "zoom"
+    ? (document.getElementById("password-inp")?.value || "")
+    : "";
+
   const results = [];
   for (const url of urls) {
     const result = await fetch("/start", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ url, output: "", threads, chunk_size: 65536 }),
+      body: JSON.stringify({ url, output: "", threads, chunk_size: 65536, source: currentSource, password }),
     })
       .then((r) => r.json().then((d) => ({ ok: r.ok, status: r.status, data: d, url })))
       .catch(() => null);
@@ -644,6 +694,8 @@ document.getElementById("dl-form").addEventListener("submit", async (e) => {
     const card = createCard(result.data.job_id);
     card.dataset.driveId = driveId;
     card.dataset.url = result.url;
+    card.dataset.source = currentSource;
+    card.dataset.password = password;
     trackJob(result.data.job_id, card, driveId);
     anyStarted = true;
   }

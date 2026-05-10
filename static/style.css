@@ -121,6 +121,65 @@ body {
 }
 .key-btn.unlocked svg { stroke: var(--green); }
 
+/* ── Source toggle ── */
+
+.source-toggle {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 14px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  padding: 4px;
+}
+
+.source-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 9px 14px;
+  background: none;
+  border: none;
+  border-radius: calc(var(--r) - 3px);
+  color: var(--sub);
+  font-size: 0.8rem;
+  font-weight: 600;
+  font-family: var(--sans);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.source-btn svg { flex-shrink: 0; opacity: 0.7; transition: opacity 0.15s; }
+.source-btn:hover { color: var(--text); }
+.source-btn:hover svg { opacity: 1; }
+.source-btn.active {
+  background: var(--surface-3);
+  color: var(--text);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.25);
+}
+.source-btn.active svg { opacity: 1; }
+
+/* ── Password field ── */
+
+.password-row { margin-bottom: 10px; animation: rise 0.18s ease both; }
+
+.password-inp {
+  width: 100%;
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-radius: var(--r);
+  color: var(--text);
+  font-family: var(--sans);
+  font-size: 0.95rem;
+  padding: 14px 18px;
+  outline: none;
+  -webkit-appearance: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.password-inp::placeholder { color: var(--dim); }
+.password-inp:focus { border-color: var(--border-hi); box-shadow: 0 0 0 4px rgba(66,133,244,0.08); }
+
 /* ── Input section ── */
 
 .input-section { padding-bottom: 16px; }

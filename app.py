@@ -23,6 +23,7 @@ from downloader import DOWNLOADS_DIR, FILE_TTL, jobs, jobs_lock, run_download
 from gdrive import extract_drive_id, get_video_url
 import history
 from job import Job
+from zoom import is_zoom_url, get_zoom_video_info
 
 def _load_seats() -> dict:
     try:
@@ -136,6 +137,10 @@ def info():
     url = (data.get("url") or "").strip()
     if not url:
         return jsonify({"error": "URL required"}), 400
+
+    if is_zoom_url(url):
+        return jsonify({"title": "Zoom Recording", "source": "zoom"})
+
     try:
         video_id = extract_drive_id(url)
         drive_url = f"https://drive.google.com/u/0/get_video_info?docid={video_id}&drive_originator_app=303"
@@ -144,7 +149,7 @@ def info():
         if not title:
             logger.warning("/info could not fetch title for %s", url)
             return jsonify({"error": "Could not fetch title"}), 400
-        return jsonify({"title": title})
+        return jsonify({"title": title, "source": "gdrive"})
     except Exception as e:
         logger.exception("/info error for %s: %s", url, e)
         return jsonify({"error": str(e)}), 500
@@ -155,6 +160,8 @@ def start():
     data = request.get_json()
     url = (data.get("url") or "").strip()
     output = (data.get("output") or "").strip()
+    source = (data.get("source") or "gdrive").strip()
+    password = (data.get("password") or "").strip()
     max_threads = 16 if session.get("slot", _slot) >= 999 else 8
     num_threads = max(1, min(max_threads, int(data.get("threads", 8))))
     chunk_size = max(512, int(data.get("chunk_size", 1024 * 64)))
@@ -179,10 +186,10 @@ def start():
     session["jobs"] = user_jobs
     session.modified = True
 
-    logger.info("[job:%s] starting for %s", job_id, url)
+    logger.info("[job:%s] starting for %s (source=%s)", job_id, url, source)
     threading.Thread(
         target=run_download,
-        args=(job_id, url, output, chunk_size, num_threads, _user_id()),
+        args=(job_id, url, output, chunk_size, num_threads, _user_id(), source, password),
         daemon=True,
     ).start()
 
