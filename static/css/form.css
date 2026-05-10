@@ -133,8 +133,8 @@
 
 .dl-btn {
   width: 100%;
-  min-height: 52px;
-  padding: 14px;
+  min-height: 56px;
+  padding: 16px;
   background: var(--surface);
   color: var(--dim);
   border: 1.5px solid var(--border);

@@ -98,6 +98,7 @@ function trackJob(jobId, card, driveId) {
         setCardActions(jobId, "downloading", refs);
       } else if (msg.message.startsWith("Converting")) {
         refs.tag.textContent = "Converting";
+        refs.name.textContent = "Google Docs → DOCX";
         card.classList.remove("downloading");
         setCardActions(jobId, "fetching", refs);
       } else {
