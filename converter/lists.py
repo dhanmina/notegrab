@@ -2,9 +2,12 @@ import re
 from .styles import ts_explicit
 
 
-def make_label(ls_id: str, ps_sm: int, la: dict, list_defs: dict, list_ctrs: dict) -> tuple[str, dict]:
-    lv = f"nl_{max(0, ps_sm - 1)}"
-    key = (ls_id, lv)
+def make_label(ls_id: str, ps_sm: int, la: dict, list_defs: dict, list_ctrs: dict,
+               ps_il: float = 0, base_il: float = 0) -> tuple[str, dict]:
+    # If this item is indented >10pt deeper than the list's base, treat it as the next level
+    effective_sm = ps_sm + (1 if ps_il > base_il + 10 else 0)
+    lv = f"nl_{max(0, effective_sm - 1)}"
+    key = (ls_id, lv, round(ps_il))
     nb = list_defs.get(ls_id, {}).get('le_nb', {}).get(lv, {})
     b_gt = nb.get('b_gt', 10)
     b_gf = nb.get('b_gf', '%0.')

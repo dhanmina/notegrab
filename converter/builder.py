@@ -157,6 +157,7 @@ def _add_text_runs(p, para_text: str, str_start: int, base: int, text_anns: list
 
 def _build_paragraphs(doc: Document, paragraphs: list, model: DocModel) -> None:
     list_ctrs: dict = {}
+    list_base_il: dict = {}  # ls_id -> minimum indent seen (parent level)
     for idx, (para_text, pep, str_start) in enumerate(paragraphs):
         ps = model.para_styles.get(pep, {}) if pep else {}
         la = model.list_anns.get(pep)
@@ -165,7 +166,19 @@ def _build_paragraphs(doc: Document, paragraphs: list, model: DocModel) -> None:
         _apply_paragraph_format(p, ps, la)
 
         if la and ps.get('ps_sm') is not None and not ps.get('ps_sm_i', True):
-            lbl, lts = make_label(la.get('ls_id', ''), ps.get('ps_sm', 1), la, model.list_defs, list_ctrs)
+            ls_id = la.get('ls_id', '')
+            ps_il = ps.get('ps_il', 0)
+
+            if ls_id not in list_base_il or ps_il < list_base_il[ls_id]:
+                list_base_il[ls_id] = ps_il
+            base_il = list_base_il[ls_id]
+
+            # Returning to the parent indent: reset sub-level counters so they restart
+            if abs(ps_il - base_il) < 1:
+                for k in [k for k in list(list_ctrs) if k[0] == ls_id and k[2] != round(ps_il)]:
+                    del list_ctrs[k]
+
+            lbl, lts = make_label(ls_id, ps.get('ps_sm', 1), la, model.list_defs, list_ctrs, ps_il, base_il)
             lr = p.add_run(clean(lbl))
             style_run(lr, lts)
 
