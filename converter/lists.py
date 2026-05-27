@@ -4,9 +4,16 @@ from .styles import ts_explicit
 
 def make_label(ls_id: str, ps_sm: int, la: dict, list_defs: dict, list_ctrs: dict,
                ps_il: float = 0, base_il: float = 0) -> tuple[str, dict]:
-    # If this item is indented >10pt deeper than the list's base, treat it as the next level
-    effective_sm = ps_sm + (1 if ps_il > base_il + 10 else 0)
-    lv = f"nl_{max(0, effective_sm - 1)}"
+    # GDocs records the explicit nesting level in ls_nest when the item belongs to a
+    # multi-level list.  Use it directly.  Fall back to indent-based inference only
+    # when it is absent (most single-level lists don't carry ls_nest at all).
+    ls_nest = la.get('ls_nest')
+    if ls_nest is not None:
+        lv = f"nl_{ls_nest}"
+    else:
+        # If this item is indented >10pt deeper than the list's base, treat it as the next level
+        effective_sm = ps_sm + (1 if ps_il > base_il + 10 else 0)
+        lv = f"nl_{max(0, effective_sm - 1)}"
     key = (ls_id, lv, round(ps_il))
     nb = list_defs.get(ls_id, {}).get('le_nb', {}).get(lv, {})
     b_gt = nb.get('b_gt', 10)
