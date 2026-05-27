@@ -215,19 +215,21 @@ def _apply_final_columns(doc: Document, col_sectors: list, last_pep: int | None 
     if sectPr is not None:
         for old in sectPr.findall(qn('w:cols')):
             sectPr.remove(old)
+        # Body sectPr must not carry w:type — the preceding inline sectPr already
+        # marks its section break as continuous. Adding w:type here confuses Word.
+        for old in sectPr.findall(qn('w:type')):
+            sectPr.remove(old)
         wcols = OxmlElement('w:cols')
         wcols.set(qn('w:num'), str(n))
         wcols.set(qn('w:space'), str(space_tw))
-        sectPr.append(wcols)
-        # Without an explicit type, OOXML defaults the body sectPr to "nextPage",
-        # which would push the multi-column section to a new page. Mark it
-        # continuous so it flows directly after the preceding single-column section.
-        for old in sectPr.findall(qn('w:type')):
-            sectPr.remove(old)
-        wtype = OxmlElement('w:type')
-        wtype.set(qn('w:val'), 'continuous')
-        sectPr.insert(0, wtype)
-        log.debug('Applied %d-column layout to body sectPr (continuous)', n)
+        # OOXML schema requires w:cols to precede w:docGrid; appending at the end
+        # puts it after w:docGrid and Word silently ignores the column setting.
+        docGrid = sectPr.find(qn('w:docGrid'))
+        if docGrid is not None:
+            docGrid.addprevious(wcols)
+        else:
+            sectPr.append(wcols)
+        log.debug('Applied %d-column layout to body sectPr', n)
 
 
 def _build_headers(doc: Document, img_elements: list, images: dict[str, bytes]) -> None:
