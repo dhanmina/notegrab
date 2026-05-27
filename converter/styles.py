@@ -36,7 +36,13 @@ def ts_explicit(sm: dict) -> dict:
     return {k: v for k, v in sm.items() if not k.endswith('_i') and v is not None}
 
 
-def get_ts(pos: int, text_anns: list) -> dict:
+# Bold/italic from an annotation that started before the paragraph boundary is a
+# cross-paragraph carry-over (e.g. a Situation header span bleeding into question
+# items). Exclude it so only intra-paragraph bold/italic takes effect.
+_TS_NO_CROSS_PARA = {'ts_bd', 'ts_it'}
+
+
+def get_ts(pos: int, text_anns: list, para_start: int | None = None) -> dict:
     s: dict = {}
     for si, ei, sm in text_anns:
         if si <= pos <= ei:
@@ -46,6 +52,8 @@ def get_ts(pos: int, text_anns: list) -> dict:
                 if k in _TS_TRUST_INHERITED:
                     s[k] = v
                 elif not sm.get(k + '_i', True):
+                    if para_start is not None and k in _TS_NO_CROSS_PARA and si < para_start:
+                        continue
                     s[k] = v
     return s
 

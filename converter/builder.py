@@ -131,6 +131,7 @@ def _apply_paragraph_format(p, ps: dict, la) -> None:
 
 def _add_text_runs(p, para_text: str, str_start: int, base: int, text_anns: list) -> None:
     # Split on \x0b (soft return) BEFORE cleaning so positions stay aligned
+    para_start = base + str_start
     sub_off = 0
     for seg_i, segment in enumerate(para_text.split('\x0b')):
         if seg_i > 0:
@@ -143,9 +144,9 @@ def _add_text_runs(p, para_text: str, str_start: int, base: int, text_anns: list
         i = 0
         while i < len(segment):
             cp = base + str_start + sub_off + i
-            ts = get_ts(cp, text_anns)
+            ts = get_ts(cp, text_anns, para_start)
             j = i + 1
-            while j < len(segment) and get_ts(base + str_start + sub_off + j, text_anns) == ts:
+            while j < len(segment) and get_ts(base + str_start + sub_off + j, text_anns, para_start) == ts:
                 j += 1
             run_text = clean(segment[i:j])
             if run_text:
