@@ -215,8 +215,6 @@ def _apply_final_columns(doc: Document, col_sectors: list, last_pep: int | None 
     if sectPr is not None:
         for old in sectPr.findall(qn('w:cols')):
             sectPr.remove(old)
-        # Body sectPr must not carry w:type — the preceding inline sectPr already
-        # marks its section break as continuous. Adding w:type here confuses Word.
         for old in sectPr.findall(qn('w:type')):
             sectPr.remove(old)
         wcols = OxmlElement('w:cols')
@@ -232,30 +230,18 @@ def _apply_final_columns(doc: Document, col_sectors: list, last_pep: int | None 
         log.debug('Applied %d-column layout to body sectPr', n)
 
 
+def _prepend_logo(doc: Document, logo_imgs: list, images: dict[str, bytes]) -> None:
+    p = doc.add_paragraph()
+    p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    p.paragraph_format.space_before = Pt(0)
+    p.paragraph_format.space_after = Pt(0)
+    for m in logo_imgs:
+        run = p.add_run()
+        run.add_picture(io.BytesIO(images[m['cid']]), width=Pt(m['w_pt']), height=Pt(m['h_pt']))
+
+
 def _build_headers(doc: Document, img_elements: list, images: dict[str, bytes]) -> None:
-    logo_imgs = [m for m in img_elements if m['y_pt'] < 0]
     bg_imgs = [m for m in img_elements if m['y_pt'] >= 0]
-    sec0 = doc.sections[0]
-
-    if logo_imgs:
-        sec0.different_first_page_header_footer = True
-        fph = sec0.first_page_header
-        fph.is_linked_to_previous = False
-        fhp = fph.paragraphs[0]
-        fhp.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        fhp.paragraph_format.space_before = Pt(0)
-        fhp.paragraph_format.space_after = Pt(0)
-        for m in logo_imgs:
-            run = fhp.add_run()
-            run.add_picture(io.BytesIO(images[m['cid']]), width=Pt(m['w_pt']), height=Pt(m['h_pt']))
-        # Also add background to first-page header so page 1 gets it too
-        for m in bg_imgs:
-            run = fhp.add_run()
-            run.add_picture(io.BytesIO(images[m['cid']]), width=Pt(m['w_pt']), height=Pt(m['h_pt']))
-            x = (_PAGE_W_PT - m['w_pt']) / 2 if m['w_pt'] < _PAGE_W_PT else 0
-            inline_to_anchor(run, x_pt=x, y_pt=m['y_pt'], behind=m['behind'], v_relative_from='page')
-
-    # Default header (page 2+): background only
     for sec in doc.sections:
         hdr = sec.header
         hdr.is_linked_to_previous = False
@@ -270,13 +256,9 @@ def _build_headers(doc: Document, img_elements: list, images: dict[str, bytes]) 
 
 def _build_footer(doc: Document) -> None:
     sec = doc.sections[0]
-    footers = [sec.footer]
-    if sec.different_first_page_header_footer:
-        footers.append(sec.first_page_footer)
-
-    for ftr in footers:
-        ftr.is_linked_to_previous = False
-        _populate_footer_paragraph(ftr.paragraphs[0])
+    ftr = sec.footer
+    ftr.is_linked_to_previous = False
+    _populate_footer_paragraph(ftr.paragraphs[0])
 
 
 def _populate_footer_paragraph(fp) -> None:
@@ -409,6 +391,10 @@ def convert(url_or_id: str) -> tuple[bytes, str]:
     paragraphs = _split_paragraphs(model.full_text, model.base)
     log.info('Split into %d paragraphs (after stripping artifacts)', len(paragraphs))
 
+    if logo_imgs:
+        _prepend_logo(doc, logo_imgs, images)
+        log.info('Prepended logo (%d image(s)) as first body paragraph', len(logo_imgs))
+
     _build_paragraphs(doc, paragraphs, model)
     log.info('Built %d document paragraphs', len(doc.paragraphs))
 
@@ -417,7 +403,7 @@ def convert(url_or_id: str) -> tuple[bytes, str]:
 
     if img_elements:
         _build_headers(doc, img_elements, images)
-        log.info('Built headers (first_page=%s)', bool(logo_imgs))
+        log.info('Built headers (%d background image(s))', len(bg_imgs))
 
     _build_footer(doc)
     log.info('Built footer')
