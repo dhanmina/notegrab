@@ -194,20 +194,29 @@ def _build_paragraphs(doc: Document, paragraphs: list, model: DocModel) -> None:
                     inject_col_section_break(p, cur_cols, cur_space)
 
 
-def _apply_final_columns(doc: Document, col_sectors: list) -> None:
+def _apply_final_columns(doc: Document, col_sectors: list, last_pep: int | None = None) -> None:
     if not col_sectors:
         return
-    css = extract_col_list(col_sectors[-1][1])
-    if len(css) <= 1:
-        return
-    space_tw = int((css[0].get('scol_pe') or 36) * 20)
+    if last_pep is not None:
+        # Use the column count actually in effect at the last paragraph position.
+        # This handles documents that end inside a multi-col section where the
+        # final col_sector entry is single-col (the trailing sentinel sectors).
+        n, space_tw = get_cols_at(last_pep, col_sectors)
+        if n <= 1:
+            return
+    else:
+        css = extract_col_list(col_sectors[-1][1])
+        if len(css) <= 1:
+            return
+        n = len(css)
+        space_tw = int((css[0].get('scol_pe') or 36) * 20)
     body = doc.element.body
     sectPr = body.find(qn('w:sectPr'))
     if sectPr is not None:
         for old in sectPr.findall(qn('w:cols')):
             sectPr.remove(old)
         wcols = OxmlElement('w:cols')
-        wcols.set(qn('w:num'), str(len(css)))
+        wcols.set(qn('w:num'), str(n))
         wcols.set(qn('w:space'), str(space_tw))
         sectPr.append(wcols)
         # Without an explicit type, OOXML defaults the body sectPr to "nextPage",
@@ -218,7 +227,7 @@ def _apply_final_columns(doc: Document, col_sectors: list) -> None:
         wtype = OxmlElement('w:type')
         wtype.set(qn('w:val'), 'continuous')
         sectPr.insert(0, wtype)
-        log.debug('Applied %d-column layout to body sectPr (continuous)', len(css))
+        log.debug('Applied %d-column layout to body sectPr (continuous)', n)
 
 
 def _build_headers(doc: Document, img_elements: list, images: dict[str, bytes]) -> None:
@@ -401,7 +410,8 @@ def convert(url_or_id: str) -> tuple[bytes, str]:
     _build_paragraphs(doc, paragraphs, model)
     log.info('Built %d document paragraphs', len(doc.paragraphs))
 
-    _apply_final_columns(doc, model.col_sectors)
+    last_pep = next((pep for _, pep, _ in reversed(paragraphs) if pep is not None), None)
+    _apply_final_columns(doc, model.col_sectors, last_pep)
 
     if img_elements:
         _build_headers(doc, img_elements, images)
