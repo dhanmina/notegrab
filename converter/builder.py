@@ -20,6 +20,7 @@ from .lists import make_label
 log = logging.getLogger(__name__)
 
 _PAGE_W_PT = 612.1
+_MANUAL_NUMBERED_ITEM_RE = re.compile(r'^(\d{1,3}\.)([ \t\xa0]*)(\S)')
 
 
 def _init_document() -> Document:
@@ -129,6 +130,31 @@ def _apply_paragraph_format(p, ps: dict, la) -> None:
         add_tab_stops(p, ps_ts)
 
 
+def _is_in_multi_col_body(pep: int | None, col_sectors: list) -> bool:
+    if pep is None or not col_sectors:
+        return False
+    cols, _ = get_cols_at(pep, col_sectors)
+    return cols > 1
+
+
+def _apply_manual_question_format(p, para_text: str, pep: int | None, model: DocModel) -> str:
+    if not _is_in_multi_col_body(pep, model.col_sectors):
+        return para_text
+    m = _MANUAL_NUMBERED_ITEM_RE.match(clean(para_text))
+    if not m:
+        return para_text
+
+    pf = p.paragraph_format
+    if pf.left_indent is None:
+        pf.left_indent = Pt(18)
+    if pf.first_line_indent is None:
+        pf.first_line_indent = Pt(-18)
+
+    # These rows are typed numbers in Google Docs, not list annotations. Replace
+    # the separator with a tab so they align like real numbered-list rows.
+    return _MANUAL_NUMBERED_ITEM_RE.sub(r'\1\t\3', para_text, count=1)
+
+
 def _add_text_runs(p, para_text: str, str_start: int, base: int, text_anns: list) -> None:
     # Split on \x0b (soft return) BEFORE cleaning so positions stay aligned
     para_start = base + str_start
@@ -182,6 +208,8 @@ def _build_paragraphs(doc: Document, paragraphs: list, model: DocModel) -> None:
             lbl, lts = make_label(ls_id, ps.get('ps_sm', 1), la, model.list_defs, list_ctrs, ps_il, base_il)
             lr = p.add_run(clean(lbl))
             style_run(lr, lts)
+        elif not la:
+            para_text = _apply_manual_question_format(p, para_text, pep, model)
 
         _add_text_runs(p, para_text, str_start, model.base, model.text_anns)
 

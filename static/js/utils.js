@@ -29,6 +29,10 @@ function isValidGdocsUrl(val) {
   return /docs\.google\.com\/document\/d\/[a-zA-Z0-9_-]+/.test(val);
 }
 
+function isValidGformsUrl(val) {
+  return /docs\.google\.com\/forms\/d\/(e\/)?[a-zA-Z0-9_-]+/.test(val);
+}
+
 function esc(s) {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }

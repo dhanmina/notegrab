@@ -25,6 +25,7 @@ function getValidUrl(text) {
   const v = text.trim();
   if (currentSource === "zoom")  return isValidZoomUrl(v)  ? v : null;
   if (currentSource === "gdocs") return isValidGdocsUrl(v) ? v : null;
+  if (currentSource === "gforms") return isValidGformsUrl(v) ? v : null;
   return isValidDriveUrl(v) ? v : null;
 }
 
@@ -113,10 +114,12 @@ function setSource(src) {
   document.getElementById("src-gdrive").classList.toggle("active", src === "gdrive");
   document.getElementById("src-zoom").classList.toggle("active", src === "zoom");
   document.getElementById("src-gdocs").classList.toggle("active", src === "gdocs");
+  document.getElementById("src-gforms").classList.toggle("active", src === "gforms");
   document.getElementById("password-row").style.display = src === "zoom" ? "" : "none";
   urlEl.placeholder =
     src === "zoom"  ? "Paste a Zoom recording link" :
     src === "gdocs" ? "Paste a Google Docs link" :
+    src === "gforms" ? "Paste a Google Forms link" :
                       "Paste a Google Drive link";
   urlEl.value = "";
   urlEl.classList.remove("validated", "invalid");

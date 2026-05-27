@@ -18,6 +18,7 @@ from core.gdrive import extract_drive_id, get_video_url
 from core import history
 from core.job import Job
 from core.zoom import is_zoom_url, get_zoom_video_info
+from converter import is_form_url
 
 logging.basicConfig(
     level=logging.INFO,
@@ -112,6 +113,9 @@ def info():
 
     if "docs.google.com/document/d/" in url:
         return jsonify({"title": "Google Document", "source": "gdocs"})
+
+    if is_form_url(url):
+        return jsonify({"title": "Google Form", "source": "gforms"})
 
     try:
         video_id = extract_drive_id(url)

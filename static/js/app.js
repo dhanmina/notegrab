@@ -29,6 +29,13 @@ urlEl.addEventListener("input", (e) => {
     return;
   }
 
+  if (currentSource === "gforms") {
+    titleReady = isValidGformsUrl(v);
+    if (titleReady) urlEl.classList.add("validated");
+    syncBtn();
+    return;
+  }
+
   titleReady = false;
   syncBtn();
   titleTimer = setTimeout(() => fetchTitle(v), 620);
