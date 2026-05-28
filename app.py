@@ -295,4 +295,13 @@ def flashcard_parse():
 
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", debug=False, port=8080)
+    import socket
+    port = 8080
+    hostname = socket.gethostname()
+    try:
+        local_ip = socket.gethostbyname(hostname)
+    except Exception:
+        local_ip = "127.0.0.1"
+    print(f"\n  Local:   http://localhost:{port}")
+    print(f"  Network: http://{local_ip}:{port}\n")
+    app.run(host="0.0.0.0", debug=False, port=port)
