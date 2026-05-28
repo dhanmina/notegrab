@@ -215,17 +215,20 @@
             <div class="fc-prog-fill" id="fc-prog-fill"></div>
           </div>
 
-          <!-- Question card -->
-          <div class="fc-question">
-            <div class="fc-qnum" id="fc-qnum"></div>
-            <div class="fc-qtext" id="fc-qtext"></div>
+          <!-- Question zone: fills remaining height, scrolls if text is long -->
+          <div class="fc-q-zone">
+            <div class="fc-question">
+              <div class="fc-qnum" id="fc-qnum"></div>
+              <div class="fc-qtext" id="fc-qtext"></div>
+            </div>
           </div>
 
-          <!-- Choice buttons (rendered by JS) -->
+          <!-- Choices: always anchored to the same vertical band -->
           <div class="fc-choices-list" id="fc-choices-list"></div>
 
-          <!-- Next button (shown after answering) -->
-          <button class="fc-next-btn" id="fc-next-btn" type="button" style="display:none" onclick="fcNext()">
+          <!-- Bottom bar: always at same position -->
+          <div class="fc-next-bar">
+          <button class="fc-next-btn" id="fc-next-btn" type="button" onclick="fcNext()">
             Next →
           </button>
 
@@ -235,7 +238,9 @@
             <span class="fc-kbd-item"><span class="fc-key">Enter</span> next</span>
           </div>
 
-        </div>
+          </div><!-- /fc-next-bar -->
+
+        </div><!-- /fc-study -->
 
         <!-- ── Done screen ── -->
         <div id="fc-done" style="display:none">

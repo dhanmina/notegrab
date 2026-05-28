@@ -155,9 +155,10 @@ function fcRenderCard() {
   document.getElementById('fc-qnum').textContent  = `Question ${q.num}`;
   document.getElementById('fc-qtext').textContent = q.text;
 
-  // Hide next button
+  // Next button always visible — disabled until answered
   const nextBtn = document.getElementById('fc-next-btn');
-  nextBtn.style.display = 'none';
+  nextBtn.disabled    = true;
+  nextBtn.textContent = 'Next →';
 
   // Build choice buttons
   const list = document.getElementById('fc-choices-list');
@@ -173,8 +174,9 @@ function fcRenderCard() {
     list.appendChild(btn);
   }
 
-  // Scroll to top of study area on mobile
-  fcStudyEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  // Reset question scroll on each new card
+  const qZone = fcStudyEl.querySelector('.fc-q-zone');
+  if (qZone) qZone.scrollTop = 0;
 }
 
 // ── Pick an answer ──
@@ -209,11 +211,11 @@ function fcPick(picked) {
 
   fcSyncHeader();
 
-  // Show next / finish button
-  const nextBtn  = document.getElementById('fc-next-btn');
-  const isLast   = fcIdx === fcOrder.length - 1;
-  nextBtn.textContent  = isLast ? 'See Results →' : 'Next →';
-  nextBtn.style.display = '';
+  // Enable next / finish button
+  const nextBtn = document.getElementById('fc-next-btn');
+  const isLast  = fcIdx === fcOrder.length - 1;
+  nextBtn.textContent = isLast ? 'See Results →' : 'Next →';
+  nextBtn.disabled    = false;
 }
 
 // ── Advance ──
