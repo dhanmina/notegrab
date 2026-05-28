@@ -107,6 +107,16 @@ function togglePassword() {
   document.getElementById("pw-eye-off").style.display = show ? ""     : "none";
 }
 
+// ── Mode switcher ──
+
+function setMode(mode) {
+  const isFlashcard = mode === 'flashcard';
+  document.getElementById('mode-downloads').style.display = isFlashcard ? 'none' : '';
+  document.getElementById('mode-flashcard').style.display = isFlashcard ? '' : 'none';
+  document.getElementById('modetab-downloads').classList.toggle('active', !isFlashcard);
+  document.getElementById('modetab-flashcard').classList.toggle('active', isFlashcard);
+}
+
 // ── Source toggle ──
 
 function setSource(src) {

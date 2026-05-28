@@ -19,6 +19,7 @@ from core import history
 from core.job import Job
 from core.zoom import is_zoom_url, get_zoom_video_info
 from converter import is_form_url
+from converter.flashcard import extract_questions
 
 logging.basicConfig(
     level=logging.INFO,
@@ -271,6 +272,26 @@ def delete_job(job_id):
         except OSError:
             pass
     return "", 204
+
+
+@app.route("/flashcard/parse", methods=["POST"])
+def flashcard_parse():
+    data = request.get_json()
+    url = (data.get("url") or "").strip()
+    if not url:
+        return jsonify({"error": "URL required"}), 400
+    if "docs.google.com/forms/" not in url:
+        return jsonify({"error": "Must be a Google Forms URL"}), 400
+    try:
+        questions = extract_questions(url)
+        if not questions:
+            return jsonify({"error": "No questions found. Make sure this is a valid toprank questionnaire."}), 400
+        return jsonify({"questions": questions, "total": len(questions)})
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+    except Exception as e:
+        logger.exception("/flashcard/parse error: %s", e)
+        return jsonify({"error": "Failed to parse document"}), 500
 
 
 if __name__ == "__main__":
