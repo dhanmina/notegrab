@@ -115,6 +115,7 @@ function setMode(mode) {
   document.getElementById('mode-flashcard').style.display = isFlashcard ? '' : 'none';
   document.getElementById('modetab-downloads').classList.toggle('active', !isFlashcard);
   document.getElementById('modetab-flashcard').classList.toggle('active', isFlashcard);
+  if (isFlashcard) fcInit();
 }
 
 // ── Source toggle ──

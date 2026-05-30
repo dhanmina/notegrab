@@ -16,6 +16,7 @@ from flask import Flask, Response, jsonify, render_template, request, send_file,
 from core.downloader import DOWNLOADS_DIR, FILE_TTL, jobs, jobs_lock, run_download
 from core.gdrive import extract_drive_id, get_video_url
 from core import history
+from core import flashcards as fc_store
 from core.job import Job
 from core.zoom import is_zoom_url, get_zoom_video_info
 from converter import is_form_url
@@ -29,7 +30,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
-app.secret_key = os.urandom(24)
+app.secret_key = os.environ.get("SECRET_KEY", "dev-secret-key-change-in-production")
 app.permanent_session_lifetime = timedelta(days=30)
 
 
@@ -271,6 +272,107 @@ def delete_job(job_id):
             os.remove(job.filepath)
         except OSError:
             pass
+    return "", 204
+
+
+def _parse_answers(raw: str) -> list[str]:
+    return [l.strip().upper() for l in raw.split("\n")
+            if l.strip().lower() in ("a", "b", "c", "d")]
+
+
+@app.route("/flashcards", methods=["GET"])
+def list_flashcard_sets():
+    return jsonify(fc_store.load())
+
+
+@app.route("/flashcards/import", methods=["POST"])
+def import_flashcard_set():
+    data = request.get_json()
+    set_data = data.get("set")
+    force = bool(data.get("force", False))
+
+    if not set_data or not isinstance(set_data, dict):
+        return jsonify({"error": "Invalid backup data"}), 400
+    if not set_data.get("id"):
+        return jsonify({"error": "Missing id in backup"}), 400
+
+    existing = fc_store.get_one(set_data["id"])
+    if existing and not force:
+        return jsonify({"exists": True, "title": existing["title"]}), 409
+
+    entry, was_updated = fc_store.upsert(set_data)
+    return jsonify({"entry": entry, "updated": was_updated})
+
+
+@app.route("/flashcards", methods=["POST"])
+def create_flashcard_set():
+    data = request.get_json()
+    title = (data.get("title") or "").strip()
+    url = (data.get("url") or "").strip()
+    answers_raw = (data.get("answers") or "").strip()
+
+    if not title:
+        return jsonify({"error": "Title required"}), 400
+    if not url:
+        return jsonify({"error": "URL required"}), 400
+
+    answers = _parse_answers(answers_raw)
+    if not answers:
+        return jsonify({"error": "Answer key required"}), 400
+
+    try:
+        questions = extract_questions(url)
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+    except Exception as e:
+        logger.exception("create_flashcard_set error for %s: %s", url, e)
+        return jsonify({"error": "Failed to parse form"}), 500
+
+    if len(answers) != len(questions):
+        return jsonify({"error": f"Answer count mismatch: {len(answers)} answers but form has {len(questions)} questions"}), 400
+
+    for i, q in enumerate(questions):
+        q["answer"] = answers[i]
+
+    entry = fc_store.create(title, url, answers_raw, questions)
+    return jsonify(entry), 201
+
+
+@app.route("/flashcards/<set_id>", methods=["PUT"])
+def update_flashcard_set(set_id):
+    data = request.get_json()
+    title = (data.get("title") or "").strip()
+    url = (data.get("url") or "").strip()
+    answers_raw = (data.get("answers") or "").strip()
+
+    if not title:
+        return jsonify({"error": "Title required"}), 400
+
+    existing = fc_store.get_one(set_id)
+    if not existing:
+        return jsonify({"error": "Not found"}), 404
+
+    answers   = _parse_answers(answers_raw or existing.get("answers", ""))
+    if not answers:
+        return jsonify({"error": "Answer key required"}), 400
+
+    questions = [dict(q) for q in existing.get("questions", [])]
+    if not questions:
+        return jsonify({"error": "No cached questions found"}), 400
+
+    if len(answers) != len(questions):
+        return jsonify({"error": f"Answer count mismatch: {len(answers)} answers but form has {len(questions)} questions"}), 400
+
+    for i, q in enumerate(questions):
+        q["answer"] = answers[i]
+
+    entry = fc_store.update(set_id, title=title, answers=answers_raw, questions=questions)
+    return jsonify(entry)
+
+
+@app.route("/flashcards/<set_id>", methods=["DELETE"])
+def delete_flashcard_set(set_id):
+    fc_store.delete(set_id)
     return "", 204
 
 
