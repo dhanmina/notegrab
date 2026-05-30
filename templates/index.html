@@ -18,18 +18,46 @@
 
       <!-- ── Top-level mode nav ── -->
       <div class="mode-nav">
-        <button class="mode-btn active" id="modetab-downloads" type="button" onclick="setMode('downloads')">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-            <polyline points="7 10 12 15 17 10"/>
-            <line x1="12" y1="15" x2="12" y2="3"/>
+        <button
+          class="mode-btn active"
+          id="modetab-downloads"
+          type="button"
+          onclick="setMode('downloads')"
+        >
+          <svg
+            width="13"
+            height="13"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2.2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+            <polyline points="7 10 12 15 17 10" />
+            <line x1="12" y1="15" x2="12" y2="3" />
           </svg>
           Downloads
         </button>
-        <button class="mode-btn" id="modetab-flashcard" type="button" onclick="setMode('flashcard')">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-            <rect x="2" y="5" width="20" height="14" rx="2"/>
-            <line x1="2" y1="10" x2="22" y2="10"/>
+        <button
+          class="mode-btn"
+          id="modetab-flashcard"
+          type="button"
+          onclick="setMode('flashcard')"
+        >
+          <svg
+            width="13"
+            height="13"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2.2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <rect x="2" y="5" width="20" height="14" rx="2" />
+            <line x1="2" y1="10" x2="22" y2="10" />
           </svg>
           Flashcard
         </button>
@@ -39,32 +67,90 @@
       <div id="mode-downloads">
         <section class="input-section">
           <div class="source-toggle">
-            <button class="source-btn active" id="src-gdrive" type="button" onclick="setSource('gdrive')">
-              <svg width="12" height="12" viewBox="0 0 87.3 78" fill="currentColor">
-                <path d="M6.6 66.85l3.85 6.65c.8 1.4 1.95 2.5 3.3 3.3l13.75-23.8H0c0 1.55.4 3.1 1.2 4.5z"/>
-                <path d="M43.65 25L29.9 1.2C28.55 2 27.4 3.1 26.6 4.5L1.2 48.5c-.8 1.4-1.2 2.95-1.2 4.5h27.5z"/>
-                <path d="M73.55 76.8c1.35-.8 2.5-1.9 3.3-3.3l1.6-2.75 7.65-13.25c.8-1.4 1.2-2.95 1.2-4.5H59.8l5.85 11.5z"/>
-                <path d="M43.65 25L57.4 1.2C56.05.4 54.5 0 52.9 0H34.4c-1.6 0-3.15.45-4.5 1.2z"/>
-                <path d="M59.8 53H27.5L13.75 76.8c1.35.8 2.9 1.2 4.5 1.2h50.8c1.6 0 3.15-.4 4.5-1.2z"/>
-                <path d="M73.4 26.5l-12.7-22c-.8-1.4-1.95-2.5-3.3-3.3L43.65 25 59.8 53h27.45c0-1.55-.4-3.1-1.2-4.5z"/>
+            <button
+              class="source-btn active"
+              id="src-gdrive"
+              type="button"
+              onclick="setSource('gdrive')"
+            >
+              <svg
+                width="12"
+                height="12"
+                viewBox="0 0 87.3 78"
+                fill="currentColor"
+              >
+                <path
+                  d="M6.6 66.85l3.85 6.65c.8 1.4 1.95 2.5 3.3 3.3l13.75-23.8H0c0 1.55.4 3.1 1.2 4.5z"
+                />
+                <path
+                  d="M43.65 25L29.9 1.2C28.55 2 27.4 3.1 26.6 4.5L1.2 48.5c-.8 1.4-1.2 2.95-1.2 4.5h27.5z"
+                />
+                <path
+                  d="M73.55 76.8c1.35-.8 2.5-1.9 3.3-3.3l1.6-2.75 7.65-13.25c.8-1.4 1.2-2.95 1.2-4.5H59.8l5.85 11.5z"
+                />
+                <path
+                  d="M43.65 25L57.4 1.2C56.05.4 54.5 0 52.9 0H34.4c-1.6 0-3.15.45-4.5 1.2z"
+                />
+                <path
+                  d="M59.8 53H27.5L13.75 76.8c1.35.8 2.9 1.2 4.5 1.2h50.8c1.6 0 3.15-.4 4.5-1.2z"
+                />
+                <path
+                  d="M73.4 26.5l-12.7-22c-.8-1.4-1.95-2.5-3.3-3.3L43.65 25 59.8 53h27.45c0-1.55-.4-3.1-1.2-4.5z"
+                />
               </svg>
               GDrive
             </button>
-            <button class="source-btn" id="src-zoom" type="button" onclick="setSource('zoom')">
-              <svg width="13" height="13" viewBox="0 0 20 20" fill="currentColor">
-                <path d="M2 6a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v2l3.333-1.667A1 1 0 0 1 19 7.28v5.44a1 1 0 0 1-1.667.748L14 12v2a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6z"/>
+            <button
+              class="source-btn"
+              id="src-zoom"
+              type="button"
+              onclick="setSource('zoom')"
+            >
+              <svg
+                width="13"
+                height="13"
+                viewBox="0 0 20 20"
+                fill="currentColor"
+              >
+                <path
+                  d="M2 6a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v2l3.333-1.667A1 1 0 0 1 19 7.28v5.44a1 1 0 0 1-1.667.748L14 12v2a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6z"
+                />
               </svg>
               Zoom
             </button>
-            <button class="source-btn" id="src-gdocs" type="button" onclick="setSource('gdocs')">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M14 2H6a2 2 0 0 0-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/>
+            <button
+              class="source-btn"
+              id="src-gdocs"
+              type="button"
+              onclick="setSource('gdocs')"
+            >
+              <svg
+                width="12"
+                height="12"
+                viewBox="0 0 24 24"
+                fill="currentColor"
+              >
+                <path
+                  d="M14 2H6a2 2 0 0 0-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"
+                />
               </svg>
               GDocs
             </button>
-            <button class="source-btn" id="src-gforms" type="button" onclick="setSource('gforms')">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM8 7h8v2H8V7zm0 4h8v2H8v-2zm0 4h5v2H8v-2z"/>
+            <button
+              class="source-btn"
+              id="src-gforms"
+              type="button"
+              onclick="setSource('gforms')"
+            >
+              <svg
+                width="12"
+                height="12"
+                viewBox="0 0 24 24"
+                fill="currentColor"
+              >
+                <path
+                  d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM8 7h8v2H8V7zm0 4h8v2H8v-2zm0 4h5v2H8v-2z"
+                />
               </svg>
               GForms
             </button>
@@ -102,14 +188,39 @@
                   onclick="togglePassword()"
                   aria-label="Show password"
                 >
-                  <svg id="pw-eye" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                    <circle cx="12" cy="12" r="3"/>
+                  <svg
+                    id="pw-eye"
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                    <circle cx="12" cy="12" r="3" />
                   </svg>
-                  <svg id="pw-eye-off" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: none">
-                    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/>
-                    <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/>
-                    <line x1="1" y1="1" x2="23" y2="23"/>
+                  <svg
+                    id="pw-eye-off"
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    style="display: none"
+                  >
+                    <path
+                      d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"
+                    />
+                    <path
+                      d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"
+                    />
+                    <line x1="1" y1="1" x2="23" y2="23" />
                   </svg>
                 </button>
               </div>
@@ -123,24 +234,38 @@
         </section>
 
         <nav class="tab-bar">
-          <button class="tab-btn active" id="tab-downloads" onclick="switchTab('downloads')">
+          <button
+            class="tab-btn active"
+            id="tab-downloads"
+            onclick="switchTab('downloads')"
+          >
             Downloads
-            <span class="tab-badge" id="downloads-badge" style="display: none">0</span>
+            <span class="tab-badge" id="downloads-badge" style="display: none"
+              >0</span
+            >
           </button>
-          <button class="tab-btn" id="tab-history" onclick="switchTab('history')">
+          <button
+            class="tab-btn"
+            id="tab-history"
+            onclick="switchTab('history')"
+          >
             History
           </button>
         </nav>
 
         <div class="tab-content">
           <div class="tab-pane active" id="pane-downloads">
-            <div id="downloads-empty" class="empty-state">No active downloads</div>
+            <div id="downloads-empty" class="empty-state">
+              No active downloads
+            </div>
             <div id="downloads-list" class="downloads-list"></div>
           </div>
 
           <div class="tab-pane" id="pane-history">
             <div class="history-toolbar">
-              <button class="history-clear-btn" onclick="clearHistory()">Clear all</button>
+              <button class="history-clear-btn" onclick="clearHistory()">
+                Clear all
+              </button>
             </div>
             <div id="history-empty" class="empty-state">No downloads yet</div>
             <div id="history-list" class="history-list"></div>
@@ -149,36 +274,110 @@
       </div>
 
       <!-- ── Flashcard mode ── -->
-      <div id="mode-flashcard" style="display:none">
-
+      <div id="mode-flashcard" style="display: none">
         <!-- ── Home / list screen ── -->
-        <div id="fc-home" style="display:none">
+        <div id="fc-home" style="display: none">
           <div class="fc-home-bar">
             <div class="fc-search-wrap">
-              <svg class="fc-search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-              <input class="fc-search-inp" id="fc-search" type="search" placeholder="Search…" oninput="fcOnSearch(this.value)" autocomplete="off">
+              <svg
+                class="fc-search-icon"
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2.2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <circle cx="11" cy="11" r="8" />
+                <line x1="21" y1="21" x2="16.65" y2="16.65" />
+              </svg>
+              <input
+                class="fc-search-inp"
+                id="fc-search"
+                type="search"
+                placeholder="Search…"
+                oninput="fcOnSearch(this.value)"
+                autocomplete="off"
+              />
             </div>
             <div class="fc-home-btns">
-              <button class="fc-icon-btn" type="button" onclick="fcTriggerUpload()" title="Import backup">
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+              <button
+                class="fc-icon-btn"
+                type="button"
+                onclick="fcTriggerUpload()"
+                title="Import backup"
+              >
+                <svg
+                  width="15"
+                  height="15"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2.2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                  <polyline points="17 8 12 3 7 8" />
+                  <line x1="12" y1="3" x2="12" y2="15" />
+                </svg>
               </button>
-              <input type="file" id="fc-file-inp" accept=".json" style="display:none" onchange="fcHandleUpload(this)">
-              <button class="fc-new-btn" type="button" onclick="fcShowForm(null)">+ New</button>
+              <input
+                type="file"
+                id="fc-file-inp"
+                accept=".json"
+                style="display: none"
+                onchange="fcHandleUpload(this)"
+              />
+              <button
+                class="fc-new-btn"
+                type="button"
+                onclick="fcShowForm(null)"
+              >
+                + New
+              </button>
             </div>
           </div>
           <div id="fc-grid" class="fc-grid"></div>
-          <div id="fc-home-empty" class="fc-home-empty" style="display:none">
-            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
+          <div id="fc-home-empty" class="fc-home-empty" style="display: none">
+            <svg
+              width="32"
+              height="32"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.5"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <rect x="2" y="5" width="20" height="14" rx="2" />
+              <line x1="2" y1="10" x2="22" y2="10" />
+            </svg>
             <p>No flashcard sets yet</p>
-            <button class="fc-new-btn" type="button" onclick="fcShowForm(null)">Create your first set</button>
+            <button class="fc-new-btn" type="button" onclick="fcShowForm(null)">
+              Create your first set
+            </button>
           </div>
         </div>
 
         <!-- ── Create / Edit form ── -->
-        <div id="fc-form-wrap" style="display:none">
+        <div id="fc-form-wrap" style="display: none">
           <div class="fc-form-header">
             <button class="fc-back-btn" type="button" onclick="fcCancelForm()">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2.5"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <polyline points="15 18 9 12 15 6" />
+              </svg>
               Back
             </button>
             <span class="fc-form-heading" id="fc-form-heading">New Set</span>
@@ -189,13 +388,13 @@
             class="fc-title-inp"
             id="fc-title"
             type="text"
-            placeholder="e.g. PIA Mock Exam 1"
+            placeholder="e.g. RECALLS 1 - NP 1"
             autocomplete="off"
             spellcheck="false"
             oninput="fcSyncSave()"
           />
 
-          <div id="fc-url-row" style="margin-top:18px">
+          <div id="fc-url-row" style="margin-top: 18px">
             <p class="fc-field-label">Google Forms link</p>
             <input
               class="fc-url-inp"
@@ -209,8 +408,8 @@
             />
           </div>
 
-          <div class="fc-label-row" style="margin-top:18px">
-            <p class="fc-field-label" style="margin-bottom:0">Answer key</p>
+          <div class="fc-label-row" style="margin-top: 18px">
+            <p class="fc-field-label" style="margin-bottom: 0">Answer key</p>
             <span class="fc-ans-count" id="fc-ans-count">0 / 100</span>
           </div>
 
@@ -226,50 +425,123 @@
               spellcheck="false"
               oninput="fcHandlePasteStrip(this)"
             />
-            <button class="fc-paste-clear" type="button" onclick="fcClearAllAnswers()" title="Clear all">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            <button
+              class="fc-paste-clear"
+              type="button"
+              onclick="fcClearAllAnswers()"
+              title="Clear all"
+            >
+              <svg
+                width="12"
+                height="12"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2.5"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <line x1="18" y1="6" x2="6" y2="18" />
+                <line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
             </button>
           </div>
 
-          <input id="fc-kb-inp" type="text"
-            autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false"
-            style="position:fixed;opacity:0;width:1px;height:1px;top:0;left:0;pointer-events:none;"
-            oninput="fcKbInput(this)" onkeydown="fcKbKey(event)" onblur="fcKbBlur()">
+          <input
+            id="fc-kb-inp"
+            type="text"
+            autocomplete="off"
+            autocorrect="off"
+            autocapitalize="none"
+            spellcheck="false"
+            style="
+              position: fixed;
+              opacity: 0;
+              width: 1px;
+              height: 1px;
+              top: 0;
+              left: 0;
+              pointer-events: none;
+            "
+            oninput="fcKbInput(this)"
+            onkeydown="fcKbKey(event)"
+            onblur="fcKbBlur()"
+          />
 
           <div class="fc-ans-grid" id="fc-ans-grid"></div>
 
           <!-- Replace confirmation modal -->
-          <div class="fc-modal-backdrop" id="fc-replace-modal" style="display:none" onclick="if(event.target===this)document.getElementById('fc-modal-no').click()">
+          <div
+            class="fc-modal-backdrop"
+            id="fc-replace-modal"
+            style="display: none"
+            onclick="
+              if (event.target === this)
+                document.getElementById('fc-modal-no').click();
+            "
+          >
             <div class="fc-modal">
               <p class="fc-modal-title">Replace all answers?</p>
               <p class="fc-modal-body" id="fc-modal-body"></p>
               <div class="fc-modal-actions">
-                <button class="fc-modal-btn ghost" type="button" id="fc-modal-no">Cancel</button>
-                <button class="fc-modal-btn primary" type="button" id="fc-modal-yes">Replace</button>
+                <button
+                  class="fc-modal-btn ghost"
+                  type="button"
+                  id="fc-modal-no"
+                >
+                  Cancel
+                </button>
+                <button
+                  class="fc-modal-btn primary"
+                  type="button"
+                  id="fc-modal-yes"
+                >
+                  Replace
+                </button>
               </div>
             </div>
           </div>
 
           <div class="fc-error" id="fc-error"></div>
 
-          <button class="fc-load-btn" id="fc-save-btn" type="button" disabled onclick="fcSaveForm()">
-            <span class="btn-spinner" id="fc-save-spin" style="display:none"></span>
+          <button
+            class="fc-load-btn"
+            id="fc-save-btn"
+            type="button"
+            disabled
+            onclick="fcSaveForm()"
+          >
+            <span
+              class="btn-spinner"
+              id="fc-save-spin"
+              style="display: none"
+            ></span>
             <span id="fc-save-text">Save</span>
           </button>
         </div>
 
         <!-- ── Loading ── -->
-        <div id="fc-loading" style="display:none" class="fc-loading">
+        <div id="fc-loading" style="display: none" class="fc-loading">
           <div class="fc-spin"></div>
           Parsing questions…
         </div>
 
         <!-- ── Study screen ── -->
-        <div id="fc-study" style="display:none">
-
+        <div id="fc-study" style="display: none">
           <div class="fc-study-bar">
             <button class="fc-back-btn" type="button" onclick="fcExitStudy()">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2.5"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <polyline points="15 18 9 12 15 6" />
+              </svg>
               Back
             </button>
             <div class="fc-study-meta">
@@ -296,21 +568,31 @@
           <div class="fc-choices-list" id="fc-choices-list"></div>
 
           <div class="fc-next-bar">
-            <button class="fc-next-btn" id="fc-next-btn" type="button" onclick="fcNext()">
+            <button
+              class="fc-next-btn"
+              id="fc-next-btn"
+              type="button"
+              onclick="fcNext()"
+            >
               Next →
             </button>
             <div class="fc-kbd">
-              <span class="fc-kbd-item"><span class="fc-key">A</span><span class="fc-key">B</span><span class="fc-key">C</span><span class="fc-key">D</span> to answer</span>
-              <span class="fc-kbd-item"><span class="fc-key">Enter</span> next</span>
+              <span class="fc-kbd-item"
+                ><span class="fc-key">A</span><span class="fc-key">B</span
+                ><span class="fc-key">C</span><span class="fc-key">D</span> to
+                answer</span
+              >
+              <span class="fc-kbd-item"
+                ><span class="fc-key">Enter</span> next</span
+              >
             </div>
           </div>
-
-        </div><!-- /fc-study -->
+        </div>
+        <!-- /fc-study -->
 
         <!-- ── Done screen ── -->
-        <div id="fc-done" style="display:none">
+        <div id="fc-done" style="display: none">
           <div class="fc-done-inner">
-
             <div class="fc-done-score">
               <div class="fc-done-pct" id="fc-done-pct">—</div>
               <div class="fc-done-label" id="fc-done-label"></div>
@@ -322,15 +604,37 @@
             </div>
 
             <div class="fc-done-actions">
-              <button class="fc-done-btn primary"   type="button" onclick="fcDoShuffle()">⇌ Shuffle &amp; Try Again</button>
-              <button class="fc-done-btn secondary" type="button" onclick="fcDoRestart()">↺ Same Order</button>
-              <button class="fc-done-btn secondary" type="button" onclick="fcEditCurrentSet()">✎ Edit Answers</button>
-              <button class="fc-done-btn ghost"     type="button" onclick="fcExitStudy()">✕ Exit</button>
+              <button
+                class="fc-done-btn primary"
+                type="button"
+                onclick="fcDoShuffle()"
+              >
+                ⇌ Shuffle &amp; Try Again
+              </button>
+              <button
+                class="fc-done-btn secondary"
+                type="button"
+                onclick="fcDoRestart()"
+              >
+                ↺ Same Order
+              </button>
+              <button
+                class="fc-done-btn secondary"
+                type="button"
+                onclick="fcEditCurrentSet()"
+              >
+                ✎ Edit Answers
+              </button>
+              <button
+                class="fc-done-btn ghost"
+                type="button"
+                onclick="fcExitStudy()"
+              >
+                ✕ Exit
+              </button>
             </div>
-
           </div>
         </div>
-
       </div>
     </div>
 
