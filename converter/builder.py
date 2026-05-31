@@ -21,6 +21,7 @@ log = logging.getLogger(__name__)
 
 _PAGE_W_PT = 612.1
 _MANUAL_NUMBERED_ITEM_RE = re.compile(r'^(\d{1,3}\.)([ \t\xa0]*)(\S)')
+_SITUATION_RE = re.compile(r'^Situation[\s\d]', re.IGNORECASE)
 
 
 def _init_document() -> Document:
@@ -192,7 +193,7 @@ def _build_paragraphs(doc: Document, paragraphs: list, model: DocModel) -> None:
 
         _apply_paragraph_format(p, ps, la)
 
-        if la and ps.get('ps_sm') is not None and not ps.get('ps_sm_i', True):
+        if la and la.get('ls_id') in model.list_defs:
             ls_id = la.get('ls_id', '')
             ps_il = ps.get('ps_il', 0)
 
@@ -256,6 +257,88 @@ def _apply_final_columns(doc: Document, col_sectors: list, last_pep: int | None 
         else:
             sectPr.append(wcols)
         log.debug('Applied %d-column layout to body sectPr', n)
+
+
+def _bold_situation_paragraphs(doc: Document) -> None:
+    for p in doc.paragraphs:
+        if _SITUATION_RE.match(p.text.strip()):
+            for run in p.runs:
+                run.bold = True
+
+
+def _fix_column_transition(doc: Document) -> None:
+    """Replace 1-col→N-col continuous section breaks with a full-width framePr header.
+
+    builder.py uses inline sectPrs (type=continuous, cols=1) to model column
+    transitions inherited from Google Docs.  These are renderer-unreliable: some
+    renderers start the multi-column section on a new page.
+
+    Fix: find the first such transition, apply identical framePr to every preceding
+    paragraph so they form one full-width frame above the columns, then remove the
+    inline sectPr.  The body sectPr's multi-column setting is kept as-is.
+    """
+    body_sectPr = doc.element.body.find(qn('w:sectPr'))
+    if body_sectPr is None:
+        return
+    body_cols_el = body_sectPr.find(qn('w:cols'))
+    if body_cols_el is None or int(body_cols_el.get(qn('w:num'), '1')) <= 1:
+        return  # single-column document — nothing to fix
+
+    # Locate the first inline sectPr that is continuous and single-column
+    transition_idx = None
+    for i, p in enumerate(doc.paragraphs):
+        pPr = p._p.find(qn('w:pPr'))
+        if pPr is None:
+            continue
+        sp = pPr.find(qn('w:sectPr'))
+        if sp is None:
+            continue
+        t = sp.find(qn('w:type'))
+        if t is not None and t.get(qn('w:val')) != 'continuous':
+            continue
+        c = sp.find(qn('w:cols'))
+        if c is None or int(c.get(qn('w:num'), '1')) == 1:
+            transition_idx = i
+            break
+
+    if transition_idx is None:
+        return
+
+    # Compute usable page width from body sectPr geometry
+    pg_w, pg_mar_l, pg_mar_r = 12242, 720, 720
+    pgSz  = body_sectPr.find(qn('w:pgSz'))
+    pgMar = body_sectPr.find(qn('w:pgMar'))
+    if pgSz  is not None: pg_w     = int(pgSz .get(qn('w:w'),    pg_w))
+    if pgMar is not None:
+        pg_mar_l = int(pgMar.get(qn('w:left'),  pg_mar_l))
+        pg_mar_r = int(pgMar.get(qn('w:right'), pg_mar_r))
+    usable_w = pg_w - pg_mar_l - pg_mar_r
+
+    # Apply identical framePr to all header paragraphs so they form one full-width frame
+    for p in doc.paragraphs[:transition_idx + 1]:
+        pPr = p._p.find(qn('w:pPr'))
+        if pPr is None:
+            pPr = OxmlElement('w:pPr')
+            p._p.insert(0, pPr)
+        for old in pPr.findall(qn('w:framePr')):
+            pPr.remove(old)
+        fp = OxmlElement('w:framePr')
+        fp.set(qn('w:w'),       str(usable_w))
+        fp.set(qn('w:wrap'),    'notBeside')
+        fp.set(qn('w:vAnchor'), 'margin')
+        fp.set(qn('w:hAnchor'), 'margin')
+        fp.set(qn('w:x'),       '0')
+        fp.set(qn('w:y'),       '0')
+        pPr.insert(0, fp)
+
+    # Remove the now-redundant inline sectPr from the transition paragraph
+    pPr = doc.paragraphs[transition_idx]._p.find(qn('w:pPr'))
+    if pPr is not None:
+        for sp in pPr.findall(qn('w:sectPr')):
+            pPr.remove(sp)
+
+    log.debug('Column transition fixed: framePr on %d header paras, inline sectPr removed',
+              transition_idx + 1)
 
 
 def _prepend_logo(doc: Document, logo_imgs: list, images: dict[str, bytes]) -> None:
@@ -428,6 +511,8 @@ def convert(url_or_id: str) -> tuple[bytes, str]:
 
     last_pep = next((pep for _, pep, _ in reversed(paragraphs) if pep is not None), None)
     _apply_final_columns(doc, model.col_sectors, last_pep)
+    _bold_situation_paragraphs(doc)
+    _fix_column_transition(doc)
 
     if img_elements:
         _build_headers(doc, img_elements, images)
