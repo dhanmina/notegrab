@@ -263,11 +263,14 @@ def _add_question(doc, text: str) -> None:
     _style_paragraph(p, font_size=9)
 
 
-def _add_choice(doc, text: str) -> None:
+def _add_choice(doc, text: str, index: int = 0) -> None:
     p = doc.add_paragraph()
     p.paragraph_format.left_indent       = Pt(36)
     p.paragraph_format.first_line_indent = Pt(-18)
-    text = re.sub(r'^([A-D]\.)([ \t\xa0]*)(\S)', r'\1\t\3', text, count=1)
+    if re.match(r'^[A-D]\.', text.strip()):
+        text = re.sub(r'^([A-D]\.)([ \t\xa0]*)(\S)', r'\1\t\3', text, count=1)
+    else:
+        text = f'{chr(ord("A") + index)}.\t{text}'
     p.add_run(text)
     _style_paragraph(p, font_size=9)
 
@@ -283,8 +286,8 @@ def build_docx(title: str, items: list[dict], template_url: str | None = None) -
             _add_section(doc, item['text'])
         elif item['type'] == 'question':
             _add_question(doc, item['text'])
-            for choice in item['choices']:
-                _add_choice(doc, choice)
+            for ci, choice in enumerate(item['choices']):
+                _add_choice(doc, choice, ci)
 
     buf = io.BytesIO()
     doc.save(buf)
