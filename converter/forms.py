@@ -16,8 +16,18 @@ log = logging.getLogger(__name__)
 
 DEFAULT_TEMPLATE_URL = 'https://docs.google.com/document/d/1S02noSARXsm5hsHUfGO_Rpccq5td_1fe/edit'
 DEFAULT_TEMPLATE_DOCX = Path(__file__).resolve().parent / 'assets' / 'exam_template.docx'
-_FORM_DATA_RE = re.compile(r'var FB_PUBLIC_LOAD_DATA_ = (.*?);</script>', re.S)
-_FORM_ID_RE = re.compile(r'/forms/d/e/([^/]+)|/forms/d/([^/]+)')
+_FORM_DATA_RE  = re.compile(r'var FB_PUBLIC_LOAD_DATA_ = (.*?);</script>', re.S)
+_FORM_ID_RE    = re.compile(r'/forms/d/e/([^/]+)|/forms/d/([^/]+)')
+# Splits question text at inline sub-item boundaries (2+ spaces before label).
+# Captures the label so re.split yields [stem, label1, body1, label2, body2, …].
+_ROMAN_SPLIT_RE = re.compile(
+    r'\s{2,}((?:I{1,3}|IV|VI{0,3}|IX|X)|\d)\.\s+',
+    re.IGNORECASE,
+)
+_ROMAN_MAP = {
+    'I':1,'II':2,'III':3,'IV':4,'V':5,
+    'VI':6,'VII':7,'VIII':8,'IX':9,'X':10,
+}
 _SKIP_TITLES = {
     'email',
     'full name (surname, first name, middle name)',
@@ -248,6 +258,28 @@ def _apply_frame_columns(doc) -> None:
         pPr.insert(0, fp)
 
 
+def _split_roman_subitems(text: str) -> tuple[str, list[tuple[int, str]]]:
+    """Split a question stem that embeds Roman-numeral sub-items into (stem, [(n, text), ...]).
+
+    GForms stores sub-items inline in the question title with heavy whitespace:
+      '57. Stem :     I.        Item1    II.        Item2    III.  Item3'
+    Returns the stem and a list of (arabic_number, item_text) pairs.
+    If no Roman sub-items are found, returns (original_text, []).
+    """
+    parts = _ROMAN_SPLIT_RE.split(text.strip())
+    if len(parts) <= 1:
+        return text.strip(), []
+    stem     = parts[0].strip()
+    subitems = []
+    for i in range(1, len(parts) - 1, 2):
+        label   = parts[i].upper()
+        content = parts[i + 1].strip()
+        if content:
+            num = int(label) if label.isdigit() else _ROMAN_MAP.get(label, i // 2 + 1)
+            subitems.append((num, content))
+    return stem, subitems
+
+
 def _add_section(doc, text: str) -> None:
     p = doc.add_paragraph()
     p.add_run(text)
@@ -260,6 +292,14 @@ def _add_question(doc, text: str) -> None:
     p.paragraph_format.first_line_indent = Pt(-18)
     text = re.sub(r'^(\d{1,3}\.)([ \t\xa0]*)(\S)', r'\1\t\3', text, count=1)
     p.add_run(text)
+    _style_paragraph(p, font_size=9)
+
+
+def _add_subitem(doc, num: int, text: str) -> None:
+    p = doc.add_paragraph()
+    p.paragraph_format.left_indent       = Pt(54)
+    p.paragraph_format.first_line_indent = Pt(-18)
+    p.add_run(f'{num}.\t{text}')
     _style_paragraph(p, font_size=9)
 
 
@@ -285,7 +325,10 @@ def build_docx(title: str, items: list[dict], template_url: str | None = None) -
         if item['type'] == 'section':
             _add_section(doc, item['text'])
         elif item['type'] == 'question':
-            _add_question(doc, item['text'])
+            stem, subitems = _split_roman_subitems(item['text'])
+            _add_question(doc, stem)
+            for num, sub_text in subitems:
+                _add_subitem(doc, num, sub_text)
             for ci, choice in enumerate(item['choices']):
                 _add_choice(doc, choice, ci)
 

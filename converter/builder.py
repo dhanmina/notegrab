@@ -91,7 +91,37 @@ def _split_paragraphs(full_text: str, base: int) -> list[tuple[str, int | None, 
     while paragraphs and not clean(paragraphs[-1][0]).strip().lstrip('| ').lower().replace('page', '').strip():
         paragraphs.pop()
 
-    return paragraphs
+    # Collapse runs of consecutive blank paragraphs down to one.
+    # Source docs often have 2–3 blank lines between a situation header and the
+    # first question, which creates a large visible gap in the output.
+    result: list[tuple[str, int | None, int]] = []
+    prev_blank = False
+    for para in paragraphs:
+        is_blank = not clean(para[0]).strip()
+        if is_blank and prev_blank:
+            continue
+        result.append(para)
+        prev_blank = is_blank
+
+    # Drop blank paragraphs immediately before OR after a Situation header so
+    # the GDocs output matches GForms (no gap around section headers).
+    filtered: list[tuple[str, int | None, int]] = []
+    for i, para in enumerate(result):
+        if not clean(para[0]).strip():
+            next_text = next(
+                (clean(result[j][0]).strip() for j in range(i + 1, len(result)) if clean(result[j][0]).strip()),
+                '',
+            )
+            if _SITUATION_RE.match(next_text):
+                continue
+            prev_text = next(
+                (clean(result[j][0]).strip() for j in range(i - 1, -1, -1) if clean(result[j][0]).strip()),
+                '',
+            )
+            if _SITUATION_RE.match(prev_text):
+                continue
+        filtered.append(para)
+    return filtered
 
 
 def _apply_paragraph_format(p, ps: dict, la) -> None:
@@ -193,6 +223,14 @@ def _build_paragraphs(doc: Document, paragraphs: list, model: DocModel) -> None:
 
         _apply_paragraph_format(p, ps, la)
 
+        # Normalize list-item indent: source docs sometimes place numbered
+        # sub-items at question-level (18pt) instead of choice-level (36pt).
+        # Promote them so all list items sit at a consistent 36pt indent.
+        if la and p.paragraph_format.left_indent is not None:
+            if abs(p.paragraph_format.left_indent.pt - 18) < 1:
+                p.paragraph_format.left_indent       = Pt(36)
+                p.paragraph_format.first_line_indent = Pt(-18)
+
         if la and la.get('ls_id') in model.list_defs:
             ls_id = la.get('ls_id', '')
             ps_il = ps.get('ps_il', 0)
@@ -259,11 +297,76 @@ def _apply_final_columns(doc: Document, col_sectors: list, last_pep: int | None 
         log.debug('Applied %d-column layout to body sectPr', n)
 
 
+_SMALL_NUM_RE = re.compile(r'^[1-9]\.\t')
+
+
+def _normalize_subitems(doc: Document) -> None:
+    """Indent numbered sub-items one level deeper than A/B/C/D choices.
+
+    Target indent hierarchy:
+      li=18  →  question number  (N. Question text?)
+      li=36  →  lettered choice  (A. / B. / C. / D.)
+      li=54  →  numeric sub-item (1. / 2. / 3. …)
+
+    Two passes:
+      1. Manual runs: ≥2 consecutive li=18 small-number paragraphs → promote
+         to 54pt.  Single-digit question numbers (Q1–Q9) stand alone, never
+         appear as two consecutive small-numbered paragraphs.
+      2. List-annotated items already at 36pt with numeric label → deepen to
+         54pt so they match manually-formatted sub-items.
+    """
+    paras = doc.paragraphs
+    n = len(paras)
+
+    # Pass 1 — manual (no list annotation) sub-item runs
+    i = 0
+    while i < n:
+        pf = paras[i].paragraph_format
+        if pf.left_indent is None or abs(pf.left_indent.pt - 18) > 1:
+            i += 1
+            continue
+        if not _SMALL_NUM_RE.match(paras[i].text.strip()):
+            i += 1
+            continue
+
+        run = [i]
+        j = i + 1
+        while j < n:
+            tj = paras[j].text.strip()
+            if not tj:
+                j += 1
+                continue
+            pfj = paras[j].paragraph_format
+            if pfj.left_indent is not None and abs(pfj.left_indent.pt - 18) < 1 and _SMALL_NUM_RE.match(tj):
+                run.append(j)
+                j += 1
+            else:
+                break
+
+        if len(run) >= 2:
+            for k in run:
+                paras[k].paragraph_format.left_indent       = Pt(54)
+                paras[k].paragraph_format.first_line_indent = Pt(-18)
+            i = j
+        else:
+            i += 1
+
+    # Pass 2 — list-annotated sub-items already at 36pt with numeric label
+    for p in paras:
+        pf = p.paragraph_format
+        if pf.left_indent is None or abs(pf.left_indent.pt - 36) > 1:
+            continue
+        if _SMALL_NUM_RE.match(p.text.strip()):
+            pf.left_indent = Pt(54)
+
+
 def _bold_situation_paragraphs(doc: Document) -> None:
     for p in doc.paragraphs:
         if _SITUATION_RE.match(p.text.strip()):
             for run in p.runs:
                 run.bold = True
+            p.paragraph_format.space_before = Pt(0)
+            p.paragraph_format.space_after = Pt(0)
 
 
 def _fix_column_transition(doc: Document) -> None:
@@ -511,6 +614,7 @@ def convert(url_or_id: str) -> tuple[bytes, str]:
 
     last_pep = next((pep for _, pep, _ in reversed(paragraphs) if pep is not None), None)
     _apply_final_columns(doc, model.col_sectors, last_pep)
+    _normalize_subitems(doc)
     _bold_situation_paragraphs(doc)
     _fix_column_transition(doc)
 
