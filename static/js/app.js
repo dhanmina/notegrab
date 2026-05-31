@@ -15,6 +15,7 @@ urlEl.addEventListener("input", (e) => {
   const v = e.target.value.trim();
   if (!v) {
     detectedVideoSource = null;
+    detectedDocsSource  = null;
     titleReady = false;
     document.getElementById("password-row").style.display = "none";
     syncBtn();
@@ -43,16 +44,21 @@ urlEl.addEventListener("input", (e) => {
     return;
   }
 
-  if (currentSource === "gdocs") {
-    titleReady = isValidGdocsUrl(v);
-    if (titleReady) urlEl.classList.add("validated");
-    syncBtn();
-    return;
-  }
-
-  if (currentSource === "gforms") {
-    titleReady = isValidGformsUrl(v);
-    if (titleReady) urlEl.classList.add("validated");
+  if (currentSource === "docs") {
+    const isGdocs  = isValidGdocsUrl(v);
+    const isGforms = isValidGformsUrl(v);
+    if (isGdocs) {
+      detectedDocsSource = "gdocs";
+      titleReady = true;
+      urlEl.classList.add("validated");
+    } else if (isGforms) {
+      detectedDocsSource = "gforms";
+      titleReady = true;
+      urlEl.classList.add("validated");
+    } else {
+      detectedDocsSource = null;
+      titleReady = false;
+    }
     syncBtn();
     return;
   }
@@ -103,7 +109,9 @@ document.getElementById("dl-form").addEventListener("submit", async (e) => {
   const url = getValidUrl(urlEl.value);
   if (!url) return;
 
-  const effectiveSource = currentSource === "video" ? detectedVideoSource : currentSource;
+  const effectiveSource = currentSource === "video" ? detectedVideoSource
+                        : currentSource === "docs"  ? detectedDocsSource
+                        : currentSource;
   const urlKey = effectiveSource === "gdrive" ? extractDriveId(url) : url;
   if (activeDownloads.has(urlKey)) { setUrlWarn("Already downloading"); return; }
   if (completedDownloads.has(urlKey)) { setUrlWarn("Already downloaded"); return; }
