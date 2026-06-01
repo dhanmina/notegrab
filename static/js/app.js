@@ -128,7 +128,7 @@ document.getElementById("dl-form").addEventListener("submit", async (e) => {
   const result = await fetch("/start", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ url, output: "", threads: 16, chunk_size: 65536, source: effectiveSource, password }),
+    body: JSON.stringify({ url, threads: 16, chunk_size: 65536, source: effectiveSource, password }),
   })
     .then((r) => r.json().then((d) => ({ ok: r.ok, data: d })))
     .catch((err) => { console.error("[start] network error:", err); return null; });

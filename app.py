@@ -147,7 +147,6 @@ def info():
 def start():
     data = request.get_json()
     url = (data.get("url") or "").strip()
-    output = (data.get("output") or "").strip()
     source = (data.get("source") or "gdrive").strip()
     password = (data.get("password") or "").strip()
     num_threads = 16
@@ -181,7 +180,7 @@ def start():
     logger.info("[job:%s] starting for %s (source=%s)", job_id, url, source)
     threading.Thread(
         target=run_download,
-        args=(job_id, url, output, chunk_size, num_threads, _user_id(), source, password),
+        args=(job_id, url, chunk_size, num_threads, _user_id(), source, password),
         kwargs={"prefetched": prefetched},
         daemon=True,
     ).start()

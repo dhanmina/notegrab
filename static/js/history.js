@@ -18,7 +18,7 @@ async function redownload(url, source) {
   const result = await fetch("/start", {
     method:  "POST",
     headers: { "Content-Type": "application/json" },
-    body:    JSON.stringify({ url, source, output: "", threads: 16, chunk_size: 65536, password: "" }),
+    body:    JSON.stringify({ url, source, threads: 16, chunk_size: 65536, password: "" }),
   }).then((r) => r.json().then((d) => ({ ok: r.ok, data: d }))).catch(() => null);
 
   if (!result?.ok) {

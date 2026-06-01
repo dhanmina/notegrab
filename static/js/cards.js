@@ -229,7 +229,7 @@ async function retryJob(jobId) {
   const result = await fetch("/start", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ url, output: "", threads: 16, chunk_size: 65536, source: src, password: pw }),
+    body: JSON.stringify({ url, threads: 16, chunk_size: 65536, source: src, password: pw }),
   })
     .then((r) => r.json().then((d) => ({ ok: r.ok, data: d, url })))
     .catch(() => null);

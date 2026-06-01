@@ -234,7 +234,7 @@ def _download_file_web_single(job: Job, url, cookies, filepath, chunk_size):
             pass
 
 
-def run_download(job_id, video_id_or_url, output_name, chunk_size, num_threads, user_id="", source="gdrive", password="", prefetched=None):
+def run_download(job_id, video_id_or_url, chunk_size, num_threads, user_id="", source="gdrive", password="", prefetched=None):
     with jobs_lock:
         job = jobs[job_id]
 
