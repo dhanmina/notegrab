@@ -91,6 +91,8 @@ function setUrlWarn(msg) {
 function resetForm() {
   urlEl.value = "";
   urlEl.classList.remove("validated");
+  document.getElementById("password-inp").value = "";
+  document.getElementById("password-row").style.display = "none";
   titleReady = false;
   setUrlError("");
   setUrlWarn("");
