@@ -221,6 +221,19 @@ function fcKbBlur() {
   }, 200);
 }
 
+function fcKbPaste(e) {
+  e.preventDefault();
+  const raw     = (e.clipboardData || window.clipboardData).getData('text');
+  const cleaned = raw.replace(/[^a-dA-D]/g, '').toUpperCase().slice(0, 100);
+  if (!cleaned) return;
+  const start = fcActiveCell >= 0 ? fcActiveCell : 0;
+  fcFillGridFrom(cleaned, start);
+  fcRefreshAnsCount();
+  const next = start + cleaned.length;
+  if (next < 100) fcFocusCell(next);
+  else { fcCell(fcActiveCell)?.classList.remove('active'); fcActiveCell = -1; }
+}
+
 // Paste strip — paste event fills from position 0 (full replace); typing fills from first empty cell
 function fcInitPasteStrip() {
   const input = document.getElementById('fc-paste-inp');
