@@ -8,6 +8,7 @@ let fcSearchQ    = '';
 
 let fcQuestions = [];
 let fcOrder     = [];
+let fcWrong     = [];
 let fcIdx       = 0;
 let fcOk        = 0;
 let fcNo        = 0;
@@ -417,6 +418,7 @@ function fcBeginStudy(keepOrder) {
   fcIdx      = 0;
   fcOk       = 0;
   fcNo       = 0;
+  fcWrong    = [];
   fcAnswered = false;
 
   fcShow('fc-study');
@@ -477,7 +479,7 @@ function fcPick(picked) {
   const isRight = picked === correct;
 
   if (isRight) fcOk++;
-  else         fcNo++;
+  else       { fcNo++; fcWrong.push(fcOrder[fcIdx]); }
 
   document.querySelectorAll('.fc-choice-btn').forEach(btn => {
     btn.disabled = true;
@@ -538,12 +540,28 @@ function fcShowDone() {
   document.getElementById('fc-done-ok').textContent    = `${fcOk} correct`;
   document.getElementById('fc-done-no').textContent    = `${fcNo} incorrect`;
 
+  const wrongBtn = document.getElementById('fc-wrong-btn');
+  if (wrongBtn) wrongBtn.style.display = fcWrong.length > 0 ? '' : 'none';
+
   document.getElementById('fc-study').style.display = 'none';
   document.getElementById('fc-done').style.display  = '';
 }
 
-function fcDoShuffle() { fcBeginStudy(false); }
-function fcDoRestart() { fcBeginStudy(true);  }
+function fcDoShuffle()   { fcBeginStudy(false); }
+function fcDoRestart()   { fcBeginStudy(true);  }
+function fcDoWrongOnly() {
+  if (fcWrong.length === 0) return;
+  const wrongIndices = [...fcWrong];
+  fcOrder    = fcShuffle(wrongIndices);
+  fcIdx      = 0;
+  fcOk       = 0;
+  fcNo       = 0;
+  fcWrong    = [];
+  fcAnswered = false;
+  fcShow('fc-study');
+  fcRenderCard();
+  fcSyncHeader();
+}
 
 // ── Shuffle ──
 
