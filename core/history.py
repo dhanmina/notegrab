@@ -31,12 +31,14 @@ def load(user_id: str) -> list:
     return [e for e in _load_all() if e.get("user_id") == user_id]
 
 
-def append(filename: str, size: int, user_id: str) -> dict:
+def append(filename: str, size: int, user_id: str, url: str = "", source: str = "") -> dict:
     entry = {
         "id":            str(uuid.uuid4()),
         "user_id":       user_id,
         "filename":      filename,
         "size":          size,
+        "url":           url,
+        "source":        source,
         "downloaded_at": datetime.now().isoformat(timespec="seconds"),
     }
     if gist_store.enabled():

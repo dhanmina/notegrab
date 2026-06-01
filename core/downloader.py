@@ -287,7 +287,7 @@ def _run_gdocs(job_id, job, url, user_id):
             return
 
         logger.info("[job:%s] converted: %s", job_id, filename)
-        entry = history.append(filename, os.path.getsize(filepath), user_id)
+        entry = history.append(filename, os.path.getsize(filepath), user_id, url=url, source="gdocs")
         job.finish(filepath, filename, FILE_TTL, history_entry=entry)
 
     except Exception as e:
@@ -322,7 +322,7 @@ def _run_gforms(job_id, job, url, user_id):
             return
 
         logger.info("[job:%s] converted form: %s", job_id, filename)
-        entry = history.append(filename, os.path.getsize(filepath), user_id)
+        entry = history.append(filename, os.path.getsize(filepath), user_id, url=url, source="gforms")
         job.finish(filepath, filename, FILE_TTL, history_entry=entry)
 
     except Exception as e:
@@ -378,7 +378,7 @@ def _run_gdrive(job_id, job, video_id_or_url, chunk_size, num_threads, user_id):
 
         if not job.error:
             logger.info("[job:%s] finished: %s", job_id, filename)
-            entry = history.append(filename, os.path.getsize(filepath), user_id)
+            entry = history.append(filename, os.path.getsize(filepath), user_id, url=video_id_or_url, source="gdrive")
             job.finish(filepath, filename, FILE_TTL, history_entry=entry)
 
     except Exception as e:
@@ -421,7 +421,7 @@ def _run_zoom(job_id, job, share_url, password, chunk_size, num_threads, user_id
 
         if not job.error:
             logger.info("[job:%s] finished: %s", job_id, filename)
-            entry = history.append(filename, os.path.getsize(filepath), user_id)
+            entry = history.append(filename, os.path.getsize(filepath), user_id, url=share_url, source="zoom")
             job.finish(filepath, filename, FILE_TTL, history_entry=entry)
 
     except Exception as e:

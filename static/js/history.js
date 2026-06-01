@@ -2,12 +2,44 @@ function renderHistoryEntry(entry) {
   const el = document.createElement("div");
   el.className = "history-entry";
   el.id = `hentry-${entry.id}`;
+  const redownloadBtn = entry.url
+    ? `<button class="history-redl" title="Re-download" onclick="redownload('${esc(entry.url)}','${esc(entry.source || '')}')">↓</button>`
+    : '';
   el.innerHTML = `
     <div class="history-name" title="${esc(entry.filename)}">${esc(midTrunc(entry.filename))}</div>
     <div class="history-meta">${entry.size ? fmtB(entry.size) + " · " : ""}${fmtDate(entry.downloaded_at)}</div>
+    ${redownloadBtn}
     <button class="history-del" onclick="deleteHistoryEntry('${entry.id}')">×</button>
   `;
   return el;
+}
+
+async function redownload(url, source) {
+  const result = await fetch("/start", {
+    method:  "POST",
+    headers: { "Content-Type": "application/json" },
+    body:    JSON.stringify({ url, source, output: "", threads: 16, chunk_size: 65536, password: "" }),
+  }).then((r) => r.json().then((d) => ({ ok: r.ok, data: d }))).catch(() => null);
+
+  if (!result?.ok) {
+    alert(result?.data?.error || "Failed to start download.");
+    return;
+  }
+
+  const urlKey = source === "gdrive" ? extractDriveId(url) : url;
+  activeDownloads.add(urlKey);
+  const card = createCard(result.data.job_id);
+  card.dataset.urlKey = urlKey;
+  card.dataset.url    = url;
+  card.dataset.source = source;
+  trackJob(result.data.job_id, card, urlKey);
+  updateDownloadsBadge();
+
+  document.getElementById("mode-downloads").style.display = "";
+  document.getElementById("mode-flashcard").style.display = "none";
+  document.getElementById("modetab-downloads").classList.add("active");
+  document.getElementById("modetab-flashcard").classList.remove("active");
+  switchTab("downloads");
 }
 
 async function loadHistory() {
