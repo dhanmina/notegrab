@@ -1,6 +1,7 @@
 // ── State ──
 
 let fcSets       = [];
+let fcLoaded     = false;
 let fcCurrentSet = null;
 let fcEditingId  = null;
 let fcSearchQ    = '';
@@ -26,11 +27,17 @@ function fcShow(screenId) {
 // ── Init ──
 
 async function fcInit() {
+  if (fcLoaded) {
+    fcRenderHome();
+    fcShow('fc-home');
+    return;
+  }
   fcShow('fc-loading');
   try {
     const r = await fetch('/flashcards');
     const d = await r.json();
-    fcSets = Array.isArray(d) ? d : [];
+    fcSets  = Array.isArray(d) ? d : [];
+    fcLoaded = true;
   } catch {
     fcSets = [];
   }
