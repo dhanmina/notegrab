@@ -153,17 +153,15 @@ function trackJob(jobId, card, urlKey) {
       refs.name.textContent = midTrunc(msg.filename);
       refs.name.title = msg.filename;
       refs.spd.textContent = "";
-      refs.sz.textContent = [
-        total ? fmtB(total) : "",
-        ((Date.now() - t0) / 1000).toFixed(1) + "s",
-      ].filter(Boolean).join(" · ");
+      const sizeText = total ? fmtB(total) : "";
+      refs.sz.textContent = sizeText;
       card.classList.add("done");
       card.classList.remove("paused");
       setCardActions(jobId, "done", refs);
       if (msg.history_entry) prependHistoryEntry(msg.history_entry);
       else                   loadHistory();
       switchTab("downloads");
-      if (msg.ttl) startExpiry(jobId, card, msg.ttl);
+      if (msg.ttl) startExpiry(jobId, card, msg.ttl, sizeText);
     },
     error(msg) {
       es.close();
@@ -261,8 +259,8 @@ function fmtExpiry(secs) {
   return `expires in ${h}h${m > 0 ? ` ${m}m` : ""}`;
 }
 
-function startExpiry(jobId, card, ttl) {
-  const el = document.getElementById(`cspd-${jobId}`);
+function startExpiry(jobId, card, ttl, sizeText = "") {
+  const el = document.getElementById(`csz-${jobId}`);
   if (!el) return;
   el.classList.add("card-expiry");
   let remaining = ttl;
@@ -270,7 +268,7 @@ function startExpiry(jobId, card, ttl) {
   function tick() {
     const label = fmtExpiry(remaining);
     if (!label) { dismissCard(jobId); return; }
-    el.textContent = label;
+    el.textContent = [sizeText, label].filter(Boolean).join(" · ");
     el.classList.toggle("soon", remaining < 300);
     remaining -= 30;
   }
