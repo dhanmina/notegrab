@@ -338,11 +338,20 @@ def build_docx(title: str, items: list[dict], template_url: str | None = None) -
     return buf.read()
 
 
-def convert(url: str, template_url: str | None = None) -> tuple[bytes, str]:
+def convert(url: str, template_url: str | None = None, status_fn=None) -> tuple[bytes, str]:
+    def _status(msg):
+        if status_fn:
+            status_fn(msg)
+
+    _status('Downloading form...')
     html = _download_html(url)
+
+    _status('Processing questions...')
     data = _load_public_data(html)
     title, items = _extract_items(data)
     if not items:
         raise ValueError('No quiz items found in the Google Form.')
     log.info('Parsed Google Form: %s (%d output items)', title, len(items))
+
+    _status('Building DOCX...')
     return build_docx(title, items, template_url=template_url), title

@@ -96,9 +96,14 @@ function trackJob(jobId, card, urlKey) {
         card.classList.add("downloading");
         card.classList.remove("paused");
         setCardActions(jobId, "downloading", refs);
-      } else if (msg.message.startsWith("Converting")) {
-        refs.tag.textContent = "Converting";
-        refs.name.textContent = "Google Docs → DOCX";
+      } else if (msg.message.startsWith("Downloading document") ||
+                 msg.message.startsWith("Downloading form")    ||
+                 msg.message.startsWith("Parsing")             ||
+                 msg.message.startsWith("Fetching images")     ||
+                 msg.message.startsWith("Processing")          ||
+                 msg.message.startsWith("Building DOCX")) {
+        refs.tag.textContent  = "Converting";
+        refs.name.textContent = msg.message;
         card.classList.remove("downloading");
         setCardActions(jobId, "fetching", refs);
       } else {

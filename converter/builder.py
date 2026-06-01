@@ -564,50 +564,45 @@ def _extract_title(html: str) -> str:
     return title.strip()
 
 
-def convert(url_or_id: str) -> tuple[bytes, str]:
+def convert(url_or_id: str, status_fn=None) -> tuple[bytes, str]:
+    def _status(msg):
+        if status_fn:
+            status_fn(msg)
+
     log.info('Starting conversion for: %s', url_or_id)
 
     doc_id = extract_doc_id(url_or_id)
     if not doc_id:
         raise ValueError('Could not extract a document ID from the provided URL.')
-    log.info('Resolved doc ID: %s', doc_id)
 
+    _status('Downloading document...')
     html = download_html(doc_id)
     log.info('Downloaded HTML (%d bytes)', len(html))
 
     title = _extract_title(html)
-    log.info('Extracted title: %r', title)
 
+    _status('Parsing content...')
     chunks = parse_chunks(html)
     if not chunks:
         raise ValueError('No document model found. The document may be private or inaccessible.')
-    log.info('Parsed %d chunks', len(chunks))
-
     model = build_model(chunks)
-    log.info('Built model: %d chars, %d para styles, %d text anns, %d col sectors',
-             len(model.full_text), len(model.para_styles), len(model.text_anns), len(model.col_sectors))
+    log.info('Built model: %d chars, %d para styles', len(model.full_text), len(model.para_styles))
 
     img_urls = extract_image_urls(html)
-    log.info('Found %d image URLs', len(img_urls))
+    if img_urls:
+        _status(f'Fetching images ({len(img_urls)})...')
     images = _fetch_images(img_urls)
-    log.info('Fetched %d images', len(images))
 
     img_elements = _collect_image_elements(chunks, images)
     logo_imgs = [m for m in img_elements if m['y_pt'] < 0]
     bg_imgs = [m for m in img_elements if m['y_pt'] >= 0]
-    log.info('Image elements: %d logo, %d background', len(logo_imgs), len(bg_imgs))
-    for m in logo_imgs:
-        log.debug('Logo image: w=%.1fpt h=%.1fpt y=%.1fpt', m['w_pt'], m['h_pt'], m['y_pt'])
-    for m in bg_imgs:
-        log.debug('BG image: w=%.1fpt h=%.1fpt y=%.1fpt behind=%s', m['w_pt'], m['h_pt'], m['y_pt'], m['behind'])
 
+    _status('Building DOCX...')
     doc = _init_document()
     paragraphs = _split_paragraphs(model.full_text, model.base)
-    log.info('Split into %d paragraphs (after stripping artifacts)', len(paragraphs))
 
     if logo_imgs:
         _prepend_logo(doc, logo_imgs, images)
-        log.info('Prepended logo (%d image(s)) as first body paragraph', len(logo_imgs))
 
     _build_paragraphs(doc, paragraphs, model)
     log.info('Built %d document paragraphs', len(doc.paragraphs))

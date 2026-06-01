@@ -265,12 +265,14 @@ def _run_gdocs(job_id, job, url, user_id):
     filepath = None
     try:
         job.send({"type": "queued"})
-        job.send({"type": "status", "message": "Converting document..."})
 
         if job.is_stopped:
             return
 
-        docx_bytes, doc_title = gdocs_convert(url)
+        def _status(msg):
+            job.send({"type": "status", "message": msg})
+
+        docx_bytes, doc_title = gdocs_convert(url, status_fn=_status)
         filename = sanitize_filename(doc_title or "document") + ".docx"
         filepath = os.path.join(DOWNLOADS_DIR, f"{job_id}_{filename}")
         with open(filepath, "wb") as f:
@@ -298,12 +300,14 @@ def _run_gforms(job_id, job, url, user_id):
     filepath = None
     try:
         job.send({"type": "queued"})
-        job.send({"type": "status", "message": "Converting form..."})
 
         if job.is_stopped:
             return
 
-        docx_bytes, doc_title = gforms_convert(url)
+        def _status(msg):
+            job.send({"type": "status", "message": msg})
+
+        docx_bytes, doc_title = gforms_convert(url, status_fn=_status)
         filename = sanitize_filename(doc_title or "form") + ".docx"
         filepath = os.path.join(DOWNLOADS_DIR, f"{job_id}_{filename}")
         with open(filepath, "wb") as f:
