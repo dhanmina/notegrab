@@ -18,6 +18,12 @@ async function loadHistory() {
   updateHistoryEmpty();
 }
 
+function prependHistoryEntry(entry) {
+  const list = document.getElementById("history-list");
+  list.insertBefore(renderHistoryEntry(entry), list.firstChild);
+  updateHistoryEmpty();
+}
+
 async function deleteHistoryEntry(id) {
   await fetch(`/history/${id}`, { method: "DELETE" });
   document.getElementById(`hentry-${id}`)?.remove();

@@ -155,7 +155,8 @@ function trackJob(jobId, card, urlKey) {
       card.classList.add("done");
       card.classList.remove("paused");
       setCardActions(jobId, "done", refs);
-      loadHistory();
+      if (msg.history_entry) prependHistoryEntry(msg.history_entry);
+      else                   loadHistory();
       switchTab("downloads");
       if (msg.ttl) startExpiry(jobId, card, msg.ttl);
     },
