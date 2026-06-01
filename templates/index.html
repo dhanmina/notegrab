@@ -67,92 +67,17 @@
       <div id="mode-downloads">
         <section class="input-section">
           <div class="source-toggle">
-            <button
-              class="source-btn active"
-              id="src-gdrive"
-              type="button"
-              onclick="setSource('gdrive')"
-            >
-              <svg
-                width="12"
-                height="12"
-                viewBox="0 0 87.3 78"
-                fill="currentColor"
-              >
-                <path
-                  d="M6.6 66.85l3.85 6.65c.8 1.4 1.95 2.5 3.3 3.3l13.75-23.8H0c0 1.55.4 3.1 1.2 4.5z"
-                />
-                <path
-                  d="M43.65 25L29.9 1.2C28.55 2 27.4 3.1 26.6 4.5L1.2 48.5c-.8 1.4-1.2 2.95-1.2 4.5h27.5z"
-                />
-                <path
-                  d="M73.55 76.8c1.35-.8 2.5-1.9 3.3-3.3l1.6-2.75 7.65-13.25c.8-1.4 1.2-2.95 1.2-4.5H59.8l5.85 11.5z"
-                />
-                <path
-                  d="M43.65 25L57.4 1.2C56.05.4 54.5 0 52.9 0H34.4c-1.6 0-3.15.45-4.5 1.2z"
-                />
-                <path
-                  d="M59.8 53H27.5L13.75 76.8c1.35.8 2.9 1.2 4.5 1.2h50.8c1.6 0 3.15-.4 4.5-1.2z"
-                />
-                <path
-                  d="M73.4 26.5l-12.7-22c-.8-1.4-1.95-2.5-3.3-3.3L43.65 25 59.8 53h27.45c0-1.55-.4-3.1-1.2-4.5z"
-                />
+            <button class="source-btn active" id="src-video" type="button" onclick="setSource('video')">
+              <svg width="13" height="13" viewBox="0 0 20 20" fill="currentColor">
+                <path d="M2 6a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v2l3.333-1.667A1 1 0 0 1 19 7.28v5.44a1 1 0 0 1-1.667.748L14 12v2a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6z"/>
               </svg>
-              GDrive
+              Video
             </button>
-            <button
-              class="source-btn"
-              id="src-zoom"
-              type="button"
-              onclick="setSource('zoom')"
-            >
-              <svg
-                width="13"
-                height="13"
-                viewBox="0 0 20 20"
-                fill="currentColor"
-              >
-                <path
-                  d="M2 6a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v2l3.333-1.667A1 1 0 0 1 19 7.28v5.44a1 1 0 0 1-1.667.748L14 12v2a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6z"
-                />
+            <button class="source-btn" id="src-docs" type="button" onclick="setSource('docs')">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/>
               </svg>
-              Zoom
-            </button>
-            <button
-              class="source-btn"
-              id="src-gdocs"
-              type="button"
-              onclick="setSource('gdocs')"
-            >
-              <svg
-                width="12"
-                height="12"
-                viewBox="0 0 24 24"
-                fill="currentColor"
-              >
-                <path
-                  d="M14 2H6a2 2 0 0 0-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"
-                />
-              </svg>
-              GDocs
-            </button>
-            <button
-              class="source-btn"
-              id="src-gforms"
-              type="button"
-              onclick="setSource('gforms')"
-            >
-              <svg
-                width="12"
-                height="12"
-                viewBox="0 0 24 24"
-                fill="currentColor"
-              >
-                <path
-                  d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM8 7h8v2H8V7zm0 4h8v2H8v-2zm0 4h5v2H8v-2z"
-                />
-              </svg>
-              GForms
+              Docs
             </button>
           </div>
 
@@ -162,7 +87,7 @@
                 class="url-ta"
                 id="url"
                 type="text"
-                placeholder="Paste a Google Drive video link"
+                placeholder="Paste a Google Drive or Zoom link"
                 autocomplete="off"
                 spellcheck="false"
                 autofocus
@@ -447,26 +372,10 @@
             </button>
           </div>
 
-          <input
-            id="fc-kb-inp"
-            type="text"
-            autocomplete="off"
-            autocorrect="off"
-            autocapitalize="none"
-            spellcheck="false"
-            style="
-              position: fixed;
-              opacity: 0;
-              width: 1px;
-              height: 1px;
-              top: 0;
-              left: 0;
-              pointer-events: none;
-            "
-            oninput="fcKbInput(this)"
-            onkeydown="fcKbKey(event)"
-            onblur="fcKbBlur()"
-          />
+          <input id="fc-kb-inp" type="text"
+            autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false"
+            style="position:fixed;opacity:0;width:1px;height:1px;top:0;left:0;pointer-events:none;"
+            oninput="fcKbInput(this)" onkeydown="fcKbKey(event)" onblur="fcKbBlur()" onpaste="fcKbPaste(event)">
 
           <div class="fc-ans-grid" id="fc-ans-grid"></div>
 
@@ -604,34 +513,11 @@
             </div>
 
             <div class="fc-done-actions">
-              <button
-                class="fc-done-btn primary"
-                type="button"
-                onclick="fcDoShuffle()"
-              >
-                ⇌ Shuffle &amp; Try Again
-              </button>
-              <button
-                class="fc-done-btn secondary"
-                type="button"
-                onclick="fcDoRestart()"
-              >
-                ↺ Same Order
-              </button>
-              <button
-                class="fc-done-btn secondary"
-                type="button"
-                onclick="fcEditCurrentSet()"
-              >
-                ✎ Edit Answers
-              </button>
-              <button
-                class="fc-done-btn ghost"
-                type="button"
-                onclick="fcExitStudy()"
-              >
-                ✕ Exit
-              </button>
+              <button class="fc-done-btn primary"   type="button" onclick="fcDoShuffle()">⇌ Shuffle &amp; Try Again</button>
+              <button class="fc-done-btn primary"   type="button" onclick="fcDoWrongOnly()" id="fc-wrong-btn" style="display:none">✗ Review Wrong Answers</button>
+              <button class="fc-done-btn secondary" type="button" onclick="fcDoRestart()">↺ Same Order</button>
+              <button class="fc-done-btn secondary" type="button" onclick="fcEditCurrentSet()">✎ Edit Answers</button>
+              <button class="fc-done-btn ghost"     type="button" onclick="fcExitStudy()">✕ Exit</button>
             </div>
           </div>
         </div>

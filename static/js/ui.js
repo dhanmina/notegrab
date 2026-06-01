@@ -1,9 +1,11 @@
 // ── Shared state ──
 
-let titleReady   = false;
-let titleTimer   = null;
-let _clearTimer  = null;
-let currentSource = "gdrive";
+let titleReady          = false;
+let titleTimer          = null;
+let _clearTimer         = null;
+let currentSource       = "video";
+let detectedVideoSource = null;
+let detectedDocsSource  = null;
 
 const activeDownloads    = new Set();
 const completedDownloads = new Set();
@@ -23,10 +25,9 @@ const clearBtn = document.querySelector(".history-clear-btn");
 
 function getValidUrl(text) {
   const v = text.trim();
-  if (currentSource === "zoom")  return isValidZoomUrl(v)  ? v : null;
-  if (currentSource === "gdocs") return isValidGdocsUrl(v) ? v : null;
-  if (currentSource === "gforms") return isValidGformsUrl(v) ? v : null;
-  return isValidDriveUrl(v) ? v : null;
+  if (currentSource === "video") return (isValidZoomUrl(v) || isValidDriveUrl(v)) ? v : null;
+  if (currentSource === "docs")  return (isValidGdocsUrl(v) || isValidGformsUrl(v)) ? v : null;
+  return null;
 }
 
 // ── Tabs ──
@@ -90,6 +91,8 @@ function setUrlWarn(msg) {
 function resetForm() {
   urlEl.value = "";
   urlEl.classList.remove("validated");
+  document.getElementById("password-inp").value = "";
+  document.getElementById("password-row").style.display = "none";
   titleReady = false;
   setUrlError("");
   setUrlWarn("");
@@ -121,17 +124,15 @@ function setMode(mode) {
 // ── Source toggle ──
 
 function setSource(src) {
-  currentSource = src;
-  document.getElementById("src-gdrive").classList.toggle("active", src === "gdrive");
-  document.getElementById("src-zoom").classList.toggle("active", src === "zoom");
-  document.getElementById("src-gdocs").classList.toggle("active", src === "gdocs");
-  document.getElementById("src-gforms").classList.toggle("active", src === "gforms");
-  document.getElementById("password-row").style.display = src === "zoom" ? "" : "none";
+  currentSource       = src;
+  detectedVideoSource = null;
+  detectedDocsSource  = null;
+  document.getElementById("src-video").classList.toggle("active", src === "video");
+  document.getElementById("src-docs").classList.toggle("active", src === "docs");
+  document.getElementById("password-row").style.display = "none";
   urlEl.placeholder =
-    src === "zoom"  ? "Paste a Zoom recording link" :
-    src === "gdocs" ? "Paste a Google Docs link" :
-    src === "gforms" ? "Paste a Google Forms link" :
-                      "Paste a Google Drive link";
+    src === "docs" ? "Paste a Google Docs or Forms link" :
+                     "Paste a Google Drive or Zoom link";
   urlEl.value = "";
   urlEl.classList.remove("validated", "invalid");
   titleReady = false;

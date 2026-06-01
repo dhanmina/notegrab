@@ -21,6 +21,7 @@ log = logging.getLogger(__name__)
 
 _PAGE_W_PT = 612.1
 _MANUAL_NUMBERED_ITEM_RE = re.compile(r'^(\d{1,3}\.)([ \t\xa0]*)(\S)')
+_SITUATION_RE = re.compile(r'^Situation[\s\d]', re.IGNORECASE)
 
 
 def _init_document() -> Document:
@@ -90,7 +91,37 @@ def _split_paragraphs(full_text: str, base: int) -> list[tuple[str, int | None, 
     while paragraphs and not clean(paragraphs[-1][0]).strip().lstrip('| ').lower().replace('page', '').strip():
         paragraphs.pop()
 
-    return paragraphs
+    # Collapse runs of consecutive blank paragraphs down to one.
+    # Source docs often have 2–3 blank lines between a situation header and the
+    # first question, which creates a large visible gap in the output.
+    result: list[tuple[str, int | None, int]] = []
+    prev_blank = False
+    for para in paragraphs:
+        is_blank = not clean(para[0]).strip()
+        if is_blank and prev_blank:
+            continue
+        result.append(para)
+        prev_blank = is_blank
+
+    # Drop blank paragraphs immediately before OR after a Situation header so
+    # the GDocs output matches GForms (no gap around section headers).
+    filtered: list[tuple[str, int | None, int]] = []
+    for i, para in enumerate(result):
+        if not clean(para[0]).strip():
+            next_text = next(
+                (clean(result[j][0]).strip() for j in range(i + 1, len(result)) if clean(result[j][0]).strip()),
+                '',
+            )
+            if _SITUATION_RE.match(next_text):
+                continue
+            prev_text = next(
+                (clean(result[j][0]).strip() for j in range(i - 1, -1, -1) if clean(result[j][0]).strip()),
+                '',
+            )
+            if _SITUATION_RE.match(prev_text):
+                continue
+        filtered.append(para)
+    return filtered
 
 
 def _apply_paragraph_format(p, ps: dict, la) -> None:
@@ -192,7 +223,15 @@ def _build_paragraphs(doc: Document, paragraphs: list, model: DocModel) -> None:
 
         _apply_paragraph_format(p, ps, la)
 
-        if la and ps.get('ps_sm') is not None and not ps.get('ps_sm_i', True):
+        # Normalize list-item indent: source docs sometimes place numbered
+        # sub-items at question-level (18pt) instead of choice-level (36pt).
+        # Promote them so all list items sit at a consistent 36pt indent.
+        if la and p.paragraph_format.left_indent is not None:
+            if abs(p.paragraph_format.left_indent.pt - 18) < 1:
+                p.paragraph_format.left_indent       = Pt(36)
+                p.paragraph_format.first_line_indent = Pt(-18)
+
+        if la and la.get('ls_id') in model.list_defs:
             ls_id = la.get('ls_id', '')
             ps_il = ps.get('ps_il', 0)
 
@@ -256,6 +295,153 @@ def _apply_final_columns(doc: Document, col_sectors: list, last_pep: int | None 
         else:
             sectPr.append(wcols)
         log.debug('Applied %d-column layout to body sectPr', n)
+
+
+_SMALL_NUM_RE = re.compile(r'^[1-9]\.\t')
+
+
+def _normalize_subitems(doc: Document) -> None:
+    """Indent numbered sub-items one level deeper than A/B/C/D choices.
+
+    Target indent hierarchy:
+      li=18  →  question number  (N. Question text?)
+      li=36  →  lettered choice  (A. / B. / C. / D.)
+      li=54  →  numeric sub-item (1. / 2. / 3. …)
+
+    Two passes:
+      1. Manual runs: ≥2 consecutive li=18 small-number paragraphs → promote
+         to 54pt.  Single-digit question numbers (Q1–Q9) stand alone, never
+         appear as two consecutive small-numbered paragraphs.
+      2. List-annotated items already at 36pt with numeric label → deepen to
+         54pt so they match manually-formatted sub-items.
+    """
+    paras = doc.paragraphs
+    n = len(paras)
+
+    # Pass 1 — manual (no list annotation) sub-item runs
+    i = 0
+    while i < n:
+        pf = paras[i].paragraph_format
+        if pf.left_indent is None or abs(pf.left_indent.pt - 18) > 1:
+            i += 1
+            continue
+        if not _SMALL_NUM_RE.match(paras[i].text.strip()):
+            i += 1
+            continue
+
+        run = [i]
+        j = i + 1
+        while j < n:
+            tj = paras[j].text.strip()
+            if not tj:
+                j += 1
+                continue
+            pfj = paras[j].paragraph_format
+            if pfj.left_indent is not None and abs(pfj.left_indent.pt - 18) < 1 and _SMALL_NUM_RE.match(tj):
+                run.append(j)
+                j += 1
+            else:
+                break
+
+        if len(run) >= 2:
+            for k in run:
+                paras[k].paragraph_format.left_indent       = Pt(54)
+                paras[k].paragraph_format.first_line_indent = Pt(-18)
+            i = j
+        else:
+            i += 1
+
+    # Pass 2 — list-annotated sub-items already at 36pt with numeric label
+    for p in paras:
+        pf = p.paragraph_format
+        if pf.left_indent is None or abs(pf.left_indent.pt - 36) > 1:
+            continue
+        if _SMALL_NUM_RE.match(p.text.strip()):
+            pf.left_indent = Pt(54)
+
+
+def _bold_situation_paragraphs(doc: Document) -> None:
+    for p in doc.paragraphs:
+        if _SITUATION_RE.match(p.text.strip()):
+            for run in p.runs:
+                run.bold = True
+            p.paragraph_format.space_before = Pt(0)
+            p.paragraph_format.space_after = Pt(0)
+
+
+def _fix_column_transition(doc: Document) -> None:
+    """Replace 1-col→N-col continuous section breaks with a full-width framePr header.
+
+    builder.py uses inline sectPrs (type=continuous, cols=1) to model column
+    transitions inherited from Google Docs.  These are renderer-unreliable: some
+    renderers start the multi-column section on a new page.
+
+    Fix: find the first such transition, apply identical framePr to every preceding
+    paragraph so they form one full-width frame above the columns, then remove the
+    inline sectPr.  The body sectPr's multi-column setting is kept as-is.
+    """
+    body_sectPr = doc.element.body.find(qn('w:sectPr'))
+    if body_sectPr is None:
+        return
+    body_cols_el = body_sectPr.find(qn('w:cols'))
+    if body_cols_el is None or int(body_cols_el.get(qn('w:num'), '1')) <= 1:
+        return  # single-column document — nothing to fix
+
+    # Locate the first inline sectPr that is continuous and single-column
+    transition_idx = None
+    for i, p in enumerate(doc.paragraphs):
+        pPr = p._p.find(qn('w:pPr'))
+        if pPr is None:
+            continue
+        sp = pPr.find(qn('w:sectPr'))
+        if sp is None:
+            continue
+        t = sp.find(qn('w:type'))
+        if t is not None and t.get(qn('w:val')) != 'continuous':
+            continue
+        c = sp.find(qn('w:cols'))
+        if c is None or int(c.get(qn('w:num'), '1')) == 1:
+            transition_idx = i
+            break
+
+    if transition_idx is None:
+        return
+
+    # Compute usable page width from body sectPr geometry
+    pg_w, pg_mar_l, pg_mar_r = 12242, 720, 720
+    pgSz  = body_sectPr.find(qn('w:pgSz'))
+    pgMar = body_sectPr.find(qn('w:pgMar'))
+    if pgSz  is not None: pg_w     = int(pgSz .get(qn('w:w'),    pg_w))
+    if pgMar is not None:
+        pg_mar_l = int(pgMar.get(qn('w:left'),  pg_mar_l))
+        pg_mar_r = int(pgMar.get(qn('w:right'), pg_mar_r))
+    usable_w = pg_w - pg_mar_l - pg_mar_r
+
+    # Apply identical framePr to all header paragraphs so they form one full-width frame
+    for p in doc.paragraphs[:transition_idx + 1]:
+        pPr = p._p.find(qn('w:pPr'))
+        if pPr is None:
+            pPr = OxmlElement('w:pPr')
+            p._p.insert(0, pPr)
+        for old in pPr.findall(qn('w:framePr')):
+            pPr.remove(old)
+        fp = OxmlElement('w:framePr')
+        fp.set(qn('w:w'),       str(usable_w))
+        fp.set(qn('w:wrap'),    'notBeside')
+        fp.set(qn('w:vAnchor'), 'margin')
+        fp.set(qn('w:hAnchor'), 'margin')
+        fp.set(qn('w:x'),       '0')
+        fp.set(qn('w:y'),       '0')
+        pPr.insert(0, fp)
+
+    # Remove the now-redundant inline sectPr from the transition paragraph
+    pPr = doc.paragraphs[transition_idx]._p.find(qn('w:pPr'))
+    if pPr is not None:
+        for sp in pPr.findall(qn('w:sectPr')):
+            pPr.remove(sp)
+
+    log.debug('Column transition fixed: framePr on %d header paras, inline sectPr removed',
+              transition_idx + 1)
 
 
 def _prepend_logo(doc: Document, logo_imgs: list, images: dict[str, bytes]) -> None:
@@ -378,56 +564,54 @@ def _extract_title(html: str) -> str:
     return title.strip()
 
 
-def convert(url_or_id: str) -> tuple[bytes, str]:
+def convert(url_or_id: str, status_fn=None) -> tuple[bytes, str]:
+    def _status(msg):
+        if status_fn:
+            status_fn(msg)
+
     log.info('Starting conversion for: %s', url_or_id)
 
     doc_id = extract_doc_id(url_or_id)
     if not doc_id:
         raise ValueError('Could not extract a document ID from the provided URL.')
-    log.info('Resolved doc ID: %s', doc_id)
 
+    _status('Downloading document...')
     html = download_html(doc_id)
     log.info('Downloaded HTML (%d bytes)', len(html))
 
     title = _extract_title(html)
-    log.info('Extracted title: %r', title)
 
+    _status('Parsing content...')
     chunks = parse_chunks(html)
     if not chunks:
         raise ValueError('No document model found. The document may be private or inaccessible.')
-    log.info('Parsed %d chunks', len(chunks))
-
     model = build_model(chunks)
-    log.info('Built model: %d chars, %d para styles, %d text anns, %d col sectors',
-             len(model.full_text), len(model.para_styles), len(model.text_anns), len(model.col_sectors))
+    log.info('Built model: %d chars, %d para styles', len(model.full_text), len(model.para_styles))
 
     img_urls = extract_image_urls(html)
-    log.info('Found %d image URLs', len(img_urls))
+    if img_urls:
+        _status(f'Fetching images ({len(img_urls)})...')
     images = _fetch_images(img_urls)
-    log.info('Fetched %d images', len(images))
 
     img_elements = _collect_image_elements(chunks, images)
     logo_imgs = [m for m in img_elements if m['y_pt'] < 0]
     bg_imgs = [m for m in img_elements if m['y_pt'] >= 0]
-    log.info('Image elements: %d logo, %d background', len(logo_imgs), len(bg_imgs))
-    for m in logo_imgs:
-        log.debug('Logo image: w=%.1fpt h=%.1fpt y=%.1fpt', m['w_pt'], m['h_pt'], m['y_pt'])
-    for m in bg_imgs:
-        log.debug('BG image: w=%.1fpt h=%.1fpt y=%.1fpt behind=%s', m['w_pt'], m['h_pt'], m['y_pt'], m['behind'])
 
+    _status('Building DOCX...')
     doc = _init_document()
     paragraphs = _split_paragraphs(model.full_text, model.base)
-    log.info('Split into %d paragraphs (after stripping artifacts)', len(paragraphs))
 
     if logo_imgs:
         _prepend_logo(doc, logo_imgs, images)
-        log.info('Prepended logo (%d image(s)) as first body paragraph', len(logo_imgs))
 
     _build_paragraphs(doc, paragraphs, model)
     log.info('Built %d document paragraphs', len(doc.paragraphs))
 
     last_pep = next((pep for _, pep, _ in reversed(paragraphs) if pep is not None), None)
     _apply_final_columns(doc, model.col_sectors, last_pep)
+    _normalize_subitems(doc)
+    _bold_situation_paragraphs(doc)
+    _fix_column_transition(doc)
 
     if img_elements:
         _build_headers(doc, img_elements, images)

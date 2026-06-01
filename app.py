@@ -10,6 +10,9 @@ import time
 import uuid
 from datetime import timedelta
 
+from dotenv import load_dotenv
+load_dotenv()
+
 import requests
 from flask import Flask, Response, jsonify, render_template, request, send_file, session
 
@@ -17,6 +20,7 @@ from core.downloader import DOWNLOADS_DIR, FILE_TTL, jobs, jobs_lock, run_downlo
 from core.gdrive import extract_drive_id, get_video_url
 from core import history
 from core import flashcards as fc_store
+from core import gist_store
 from core.job import Job
 from core.zoom import is_zoom_url, get_zoom_video_info
 from converter import is_form_url
@@ -32,6 +36,12 @@ logger = logging.getLogger(__name__)
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "dev-secret-key-change-in-production")
 app.permanent_session_lifetime = timedelta(days=30)
+
+if gist_store.enabled():
+    threading.Thread(target=gist_store.warm, daemon=True).start()
+    logger.info("gist storage enabled — warming cache")
+else:
+    logger.info("gist storage disabled — using local files")
 
 
 def _cleanup_downloads():
@@ -137,7 +147,6 @@ def info():
 def start():
     data = request.get_json()
     url = (data.get("url") or "").strip()
-    output = (data.get("output") or "").strip()
     source = (data.get("source") or "gdrive").strip()
     password = (data.get("password") or "").strip()
     num_threads = 16
@@ -171,7 +180,7 @@ def start():
     logger.info("[job:%s] starting for %s (source=%s)", job_id, url, source)
     threading.Thread(
         target=run_download,
-        args=(job_id, url, output, chunk_size, num_threads, _user_id(), source, password),
+        args=(job_id, url, chunk_size, num_threads, _user_id(), source, password),
         kwargs={"prefetched": prefetched},
         daemon=True,
     ).start()

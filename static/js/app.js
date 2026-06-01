@@ -13,32 +13,58 @@ urlEl.addEventListener("input", (e) => {
   urlEl.classList.remove("validated");
 
   const v = e.target.value.trim();
-  if (!v) { titleReady = false; syncBtn(); return; }
-
-  if (currentSource === "zoom") {
-    titleReady = isValidZoomUrl(v);
-    if (titleReady) urlEl.classList.add("validated");
+  if (!v) {
+    detectedVideoSource = null;
+    detectedDocsSource  = null;
+    titleReady = false;
+    document.getElementById("password-row").style.display = "none";
     syncBtn();
     return;
   }
 
-  if (currentSource === "gdocs") {
-    titleReady = isValidGdocsUrl(v);
-    if (titleReady) urlEl.classList.add("validated");
-    syncBtn();
+  if (currentSource === "video") {
+    const isZoom  = isValidZoomUrl(v);
+    const isDrive = isValidDriveUrl(v);
+    document.getElementById("password-row").style.display = isZoom ? "" : "none";
+    if (isZoom) {
+      detectedVideoSource = "zoom";
+      titleReady = true;
+      urlEl.classList.add("validated");
+      syncBtn();
+    } else if (isDrive) {
+      detectedVideoSource = "gdrive";
+      titleReady = false;
+      syncBtn();
+      titleTimer = setTimeout(() => fetchTitle(v), 620);
+    } else {
+      detectedVideoSource = null;
+      titleReady = false;
+      syncBtn();
+    }
     return;
   }
 
-  if (currentSource === "gforms") {
-    titleReady = isValidGformsUrl(v);
-    if (titleReady) urlEl.classList.add("validated");
+  if (currentSource === "docs") {
+    const isGdocs  = isValidGdocsUrl(v);
+    const isGforms = isValidGformsUrl(v);
+    if (isGdocs) {
+      detectedDocsSource = "gdocs";
+      titleReady = true;
+      urlEl.classList.add("validated");
+    } else if (isGforms) {
+      detectedDocsSource = "gforms";
+      titleReady = true;
+      urlEl.classList.add("validated");
+    } else {
+      detectedDocsSource = null;
+      titleReady = false;
+    }
     syncBtn();
     return;
   }
 
   titleReady = false;
   syncBtn();
-  titleTimer = setTimeout(() => fetchTitle(v), 620);
 });
 
 async function fetchTitle(url) {
@@ -83,23 +109,26 @@ document.getElementById("dl-form").addEventListener("submit", async (e) => {
   const url = getValidUrl(urlEl.value);
   if (!url) return;
 
-  const urlKey = currentSource === "gdrive" ? extractDriveId(url) : url;
+  const effectiveSource = currentSource === "video" ? detectedVideoSource
+                        : currentSource === "docs"  ? detectedDocsSource
+                        : currentSource;
+  const urlKey = effectiveSource === "gdrive" ? extractDriveId(url) : url;
   if (activeDownloads.has(urlKey)) { setUrlWarn("Already downloading"); return; }
   if (completedDownloads.has(urlKey)) { setUrlWarn("Already downloaded"); return; }
   setUrlWarn("");
 
   dlBtn.disabled = true;
   dlBtn.classList.add("loading");
-  btnText.textContent = currentSource === "zoom" ? "Checking…" : "Starting…";
+  btnText.textContent = effectiveSource === "zoom" ? "Checking…" : "Starting…";
 
-  const password = currentSource === "zoom"
+  const password = effectiveSource === "zoom"
     ? (document.getElementById("password-inp")?.value || "")
     : "";
 
   const result = await fetch("/start", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ url, output: "", threads: 16, chunk_size: 65536, source: currentSource, password }),
+    body: JSON.stringify({ url, threads: 16, chunk_size: 65536, source: effectiveSource, password }),
   })
     .then((r) => r.json().then((d) => ({ ok: r.ok, data: d })))
     .catch((err) => { console.error("[start] network error:", err); return null; });
@@ -118,7 +147,7 @@ document.getElementById("dl-form").addEventListener("submit", async (e) => {
   const card = createCard(result.data.job_id);
   card.dataset.urlKey   = urlKey;
   card.dataset.url      = url;
-  card.dataset.source   = currentSource;
+  card.dataset.source   = effectiveSource;
   card.dataset.password = password;
   trackJob(result.data.job_id, card, urlKey);
 

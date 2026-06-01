@@ -5,11 +5,14 @@ import threading
 import uuid
 from datetime import datetime
 
-# Store each set as its own JSON file in flashcards/ at the project root
+from . import gist_store
+
+# ── file-based storage (local dev fallback when gist env vars are not set) ──
+
 SETS_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "flashcards")
 os.makedirs(SETS_DIR, exist_ok=True)
-_MARKER = "flashcard_set"
-_lock   = threading.Lock()
+_MARKER    = "flashcard_set"
+_file_lock = threading.Lock()
 
 
 def _title_to_filename(title: str) -> str:
@@ -71,7 +74,12 @@ def _unique_filename(title: str, exclude_id: str | None = None) -> str:
         i += 1
 
 
+# ── public API ───────────────────────────────────────────────────────────────
+
 def load() -> list:
+    if gist_store.enabled():
+        with gist_store.op_lock:
+            return list(gist_store.load().get("flashcards", []))
     result = []
     for path in _all_set_paths():
         e = _load_file(path)
@@ -82,6 +90,10 @@ def load() -> list:
 
 
 def get_one(set_id: str) -> dict | None:
+    if gist_store.enabled():
+        with gist_store.op_lock:
+            sets = gist_store.load().get("flashcards", [])
+        return next((s for s in sets if s.get("id") == set_id), None)
     for path in _all_set_paths():
         e = _load_file(path)
         if e and e.get("id") == set_id:
@@ -90,12 +102,10 @@ def get_one(set_id: str) -> dict | None:
 
 
 def create(title: str, url: str, answers: str, questions: list) -> dict:
-    now      = datetime.now().isoformat(timespec="seconds")
-    filename = _unique_filename(title)
+    now   = datetime.now().isoformat(timespec="seconds")
     entry = {
         "_type":      _MARKER,
         "id":         str(uuid.uuid4()),
-        "filename":   filename,
         "title":      title,
         "url":        url,
         "answers":    answers,
@@ -103,13 +113,32 @@ def create(title: str, url: str, answers: str, questions: list) -> dict:
         "created_at": now,
         "updated_at": now,
     }
-    with _lock:
+    if gist_store.enabled():
+        with gist_store.op_lock:
+            data = gist_store.load()
+            sets = [entry] + list(data.get("flashcards", []))
+            gist_store.save({**data, "flashcards": sets})
+        return entry
+    filename = _unique_filename(title)
+    entry["filename"] = filename
+    with _file_lock:
         _save_file(_set_path(filename), entry)
     return entry
 
 
 def update(set_id: str, **kwargs) -> dict | None:
-    with _lock:
+    if gist_store.enabled():
+        with gist_store.op_lock:
+            data = gist_store.load()
+            sets = list(data.get("flashcards", []))
+            for i, s in enumerate(sets):
+                if s.get("id") == set_id:
+                    sets[i] = {**s, **kwargs,
+                                "updated_at": datetime.now().isoformat(timespec="seconds")}
+                    gist_store.save({**data, "flashcards": sets})
+                    return sets[i]
+        return None
+    with _file_lock:
         for path in _all_set_paths():
             e = _load_file(path)
             if not (e and e.get("id") == set_id):
@@ -133,7 +162,26 @@ def update(set_id: str, **kwargs) -> dict | None:
 def upsert(set_data: dict) -> tuple[dict, bool]:
     set_id = set_data.get("id") or str(uuid.uuid4())
     now    = datetime.now().isoformat(timespec="seconds")
-    with _lock:
+    if gist_store.enabled():
+        with gist_store.op_lock:
+            data  = gist_store.load()
+            sets  = list(data.get("flashcards", []))
+            idx   = next((i for i, s in enumerate(sets) if s.get("id") == set_id), None)
+            entry = {
+                **set_data,
+                "_type":      _MARKER,
+                "id":         set_id,
+                "updated_at": now,
+                "created_at": sets[idx].get("created_at", now) if idx is not None else now,
+            }
+            if idx is not None:
+                sets[idx] = entry
+            else:
+                sets.insert(0, entry)
+            gist_store.save({**data, "flashcards": sets})
+        return entry, idx is not None
+    set_id = set_data.get("id") or str(uuid.uuid4())
+    with _file_lock:
         existing_path  = None
         existing_entry = None
         for path in _all_set_paths():
@@ -159,8 +207,14 @@ def upsert(set_data: dict) -> tuple[dict, bool]:
         return entry, existing_path is not None
 
 
-def delete(set_id: str):
-    with _lock:
+def delete(set_id: str) -> None:
+    if gist_store.enabled():
+        with gist_store.op_lock:
+            data = gist_store.load()
+            sets = [s for s in data.get("flashcards", []) if s.get("id") != set_id]
+            gist_store.save({**data, "flashcards": sets})
+        return
+    with _file_lock:
         for path in _all_set_paths():
             e = _load_file(path)
             if e and e.get("id") == set_id:

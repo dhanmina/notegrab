@@ -234,7 +234,7 @@ def _download_file_web_single(job: Job, url, cookies, filepath, chunk_size):
             pass
 
 
-def run_download(job_id, video_id_or_url, output_name, chunk_size, num_threads, user_id="", source="gdrive", password="", prefetched=None):
+def run_download(job_id, video_id_or_url, chunk_size, num_threads, user_id="", source="gdrive", password="", prefetched=None):
     with jobs_lock:
         job = jobs[job_id]
 
@@ -265,12 +265,14 @@ def _run_gdocs(job_id, job, url, user_id):
     filepath = None
     try:
         job.send({"type": "queued"})
-        job.send({"type": "status", "message": "Converting document..."})
 
         if job.is_stopped:
             return
 
-        docx_bytes, doc_title = gdocs_convert(url)
+        def _status(msg):
+            job.send({"type": "status", "message": msg})
+
+        docx_bytes, doc_title = gdocs_convert(url, status_fn=_status)
         filename = sanitize_filename(doc_title or "document") + ".docx"
         filepath = os.path.join(DOWNLOADS_DIR, f"{job_id}_{filename}")
         with open(filepath, "wb") as f:
@@ -285,8 +287,8 @@ def _run_gdocs(job_id, job, url, user_id):
             return
 
         logger.info("[job:%s] converted: %s", job_id, filename)
-        job.finish(filepath, filename, FILE_TTL)
-        history.append(filename, os.path.getsize(filepath), user_id)
+        entry = history.append(filename, os.path.getsize(filepath), user_id, url=url, source="gdocs")
+        job.finish(filepath, filename, FILE_TTL, history_entry=entry)
 
     except Exception as e:
         if not job.is_stopped:
@@ -298,12 +300,14 @@ def _run_gforms(job_id, job, url, user_id):
     filepath = None
     try:
         job.send({"type": "queued"})
-        job.send({"type": "status", "message": "Converting form..."})
 
         if job.is_stopped:
             return
 
-        docx_bytes, doc_title = gforms_convert(url)
+        def _status(msg):
+            job.send({"type": "status", "message": msg})
+
+        docx_bytes, doc_title = gforms_convert(url, status_fn=_status)
         filename = sanitize_filename(doc_title or "form") + ".docx"
         filepath = os.path.join(DOWNLOADS_DIR, f"{job_id}_{filename}")
         with open(filepath, "wb") as f:
@@ -318,8 +322,8 @@ def _run_gforms(job_id, job, url, user_id):
             return
 
         logger.info("[job:%s] converted form: %s", job_id, filename)
-        job.finish(filepath, filename, FILE_TTL)
-        history.append(filename, os.path.getsize(filepath), user_id)
+        entry = history.append(filename, os.path.getsize(filepath), user_id, url=url, source="gforms")
+        job.finish(filepath, filename, FILE_TTL, history_entry=entry)
 
     except Exception as e:
         if not job.is_stopped:
@@ -374,8 +378,8 @@ def _run_gdrive(job_id, job, video_id_or_url, chunk_size, num_threads, user_id):
 
         if not job.error:
             logger.info("[job:%s] finished: %s", job_id, filename)
-            job.finish(filepath, filename, FILE_TTL)
-            history.append(filename, os.path.getsize(filepath), user_id)
+            entry = history.append(filename, os.path.getsize(filepath), user_id, url=video_id_or_url, source="gdrive")
+            job.finish(filepath, filename, FILE_TTL, history_entry=entry)
 
     except Exception as e:
         if not job.is_stopped:
@@ -417,8 +421,8 @@ def _run_zoom(job_id, job, share_url, password, chunk_size, num_threads, user_id
 
         if not job.error:
             logger.info("[job:%s] finished: %s", job_id, filename)
-            job.finish(filepath, filename, FILE_TTL)
-            history.append(filename, os.path.getsize(filepath), user_id)
+            entry = history.append(filename, os.path.getsize(filepath), user_id, url=share_url, source="zoom")
+            job.finish(filepath, filename, FILE_TTL, history_entry=entry)
 
     except Exception as e:
         if not job.is_stopped:

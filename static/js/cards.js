@@ -96,9 +96,14 @@ function trackJob(jobId, card, urlKey) {
         card.classList.add("downloading");
         card.classList.remove("paused");
         setCardActions(jobId, "downloading", refs);
-      } else if (msg.message.startsWith("Converting")) {
-        refs.tag.textContent = "Converting";
-        refs.name.textContent = "Google Docs → DOCX";
+      } else if (msg.message.startsWith("Downloading document") ||
+                 msg.message.startsWith("Downloading form")    ||
+                 msg.message.startsWith("Parsing")             ||
+                 msg.message.startsWith("Fetching images")     ||
+                 msg.message.startsWith("Processing")          ||
+                 msg.message.startsWith("Building DOCX")) {
+        refs.tag.textContent  = "Converting";
+        refs.name.textContent = msg.message;
         card.classList.remove("downloading");
         setCardActions(jobId, "fetching", refs);
       } else {
@@ -148,16 +153,15 @@ function trackJob(jobId, card, urlKey) {
       refs.name.textContent = midTrunc(msg.filename);
       refs.name.title = msg.filename;
       refs.spd.textContent = "";
-      refs.sz.textContent = [
-        total ? fmtB(total) : "",
-        ((Date.now() - t0) / 1000).toFixed(1) + "s",
-      ].filter(Boolean).join(" · ");
+      const sizeText = total ? fmtB(total) : "";
+      refs.sz.textContent = sizeText;
       card.classList.add("done");
       card.classList.remove("paused");
       setCardActions(jobId, "done", refs);
-      loadHistory();
+      if (msg.history_entry) prependHistoryEntry(msg.history_entry);
+      else                   loadHistory();
       switchTab("downloads");
-      if (msg.ttl) startExpiry(jobId, card, msg.ttl);
+      if (msg.ttl) startExpiry(jobId, card, msg.ttl, sizeText);
     },
     error(msg) {
       es.close();
@@ -225,7 +229,7 @@ async function retryJob(jobId) {
   const result = await fetch("/start", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ url, output: "", threads: 16, chunk_size: 65536, source: src, password: pw }),
+    body: JSON.stringify({ url, threads: 16, chunk_size: 65536, source: src, password: pw }),
   })
     .then((r) => r.json().then((d) => ({ ok: r.ok, data: d, url })))
     .catch(() => null);
@@ -255,8 +259,8 @@ function fmtExpiry(secs) {
   return `expires in ${h}h${m > 0 ? ` ${m}m` : ""}`;
 }
 
-function startExpiry(jobId, card, ttl) {
-  const el = document.getElementById(`cspd-${jobId}`);
+function startExpiry(jobId, card, ttl, sizeText = "") {
+  const el = document.getElementById(`csz-${jobId}`);
   if (!el) return;
   el.classList.add("card-expiry");
   let remaining = ttl;
@@ -264,7 +268,7 @@ function startExpiry(jobId, card, ttl) {
   function tick() {
     const label = fmtExpiry(remaining);
     if (!label) { dismissCard(jobId); return; }
-    el.textContent = label;
+    el.textContent = [sizeText, label].filter(Boolean).join(" · ");
     el.classList.toggle("soon", remaining < 300);
     remaining -= 30;
   }

@@ -1,12 +1,14 @@
 // ── State ──
 
 let fcSets       = [];
+let fcLoaded     = false;
 let fcCurrentSet = null;
 let fcEditingId  = null;
 let fcSearchQ    = '';
 
 let fcQuestions = [];
 let fcOrder     = [];
+let fcWrong     = [];
 let fcIdx       = 0;
 let fcOk        = 0;
 let fcNo        = 0;
@@ -26,11 +28,17 @@ function fcShow(screenId) {
 // ── Init ──
 
 async function fcInit() {
+  if (fcLoaded) {
+    fcRenderHome();
+    fcShow('fc-home');
+    return;
+  }
   fcShow('fc-loading');
   try {
     const r = await fetch('/flashcards');
     const d = await r.json();
-    fcSets = Array.isArray(d) ? d : [];
+    fcSets  = Array.isArray(d) ? d : [];
+    fcLoaded = true;
   } catch {
     fcSets = [];
   }
@@ -211,6 +219,19 @@ function fcKbBlur() {
       fcActiveCell = -1;
     }
   }, 200);
+}
+
+function fcKbPaste(e) {
+  e.preventDefault();
+  const raw     = (e.clipboardData || window.clipboardData).getData('text');
+  const cleaned = raw.replace(/[^a-dA-D]/g, '').toUpperCase().slice(0, 100);
+  if (!cleaned) return;
+  const start = fcActiveCell >= 0 ? fcActiveCell : 0;
+  fcFillGridFrom(cleaned, start);
+  fcRefreshAnsCount();
+  const next = start + cleaned.length;
+  if (next < 100) fcFocusCell(next);
+  else { fcCell(fcActiveCell)?.classList.remove('active'); fcActiveCell = -1; }
 }
 
 // Paste strip — paste event fills from position 0 (full replace); typing fills from first empty cell
@@ -410,6 +431,7 @@ function fcBeginStudy(keepOrder) {
   fcIdx      = 0;
   fcOk       = 0;
   fcNo       = 0;
+  fcWrong    = [];
   fcAnswered = false;
 
   fcShow('fc-study');
@@ -470,7 +492,7 @@ function fcPick(picked) {
   const isRight = picked === correct;
 
   if (isRight) fcOk++;
-  else         fcNo++;
+  else       { fcNo++; fcWrong.push(fcOrder[fcIdx]); }
 
   document.querySelectorAll('.fc-choice-btn').forEach(btn => {
     btn.disabled = true;
@@ -531,12 +553,28 @@ function fcShowDone() {
   document.getElementById('fc-done-ok').textContent    = `${fcOk} correct`;
   document.getElementById('fc-done-no').textContent    = `${fcNo} incorrect`;
 
+  const wrongBtn = document.getElementById('fc-wrong-btn');
+  if (wrongBtn) wrongBtn.style.display = fcWrong.length > 0 ? '' : 'none';
+
   document.getElementById('fc-study').style.display = 'none';
   document.getElementById('fc-done').style.display  = '';
 }
 
-function fcDoShuffle() { fcBeginStudy(false); }
-function fcDoRestart() { fcBeginStudy(true);  }
+function fcDoShuffle()   { fcBeginStudy(false); }
+function fcDoRestart()   { fcBeginStudy(true);  }
+function fcDoWrongOnly() {
+  if (fcWrong.length === 0) return;
+  const wrongIndices = [...fcWrong];
+  fcOrder    = fcShuffle(wrongIndices);
+  fcIdx      = 0;
+  fcOk       = 0;
+  fcNo       = 0;
+  fcWrong    = [];
+  fcAnswered = false;
+  fcShow('fc-study');
+  fcRenderCard();
+  fcSyncHeader();
+}
 
 // ── Shuffle ──
 

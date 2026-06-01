@@ -136,7 +136,7 @@ def _get_play_info(session: requests.Session, base_url: str, file_id: str) -> di
         f"{base_url}nws/recording/1.0/play/info/{file_id}",
         params={"continueMode": "true"},
     )
-    return resp.json().get("result", {})
+    return resp.json().get("result") or {}
 
 
 def _resolve_share_to_play(session: requests.Session, base_url: str,
@@ -187,6 +187,9 @@ def _resolve_meeting_to_play(session: requests.Session, base_url: str,
     resp = session.get(share_info_url)
     result = resp.json().get("result", {})
     logger.info("share-info status=%d componentName=%s", resp.status_code, result.get("componentName"))
+
+    if result.get("componentName") == "play-forbidden":
+        raise ValueError("This Zoom recording is not available (expired or deleted)")
 
     if result.get("componentName") == "need-password":
         if not password:
@@ -242,6 +245,10 @@ def get_zoom_video_info(url: str, password: str = "") -> tuple[str, str, dict, s
 
     elif '/rec/component-page' in path:
         qs = parse_qs(parsed.query)
+        component_name = (qs.get("componentName") or [""])[0]
+        if component_name == "play-forbidden":
+            message = (qs.get("message") or [""])[0]
+            raise ValueError(message or "This Zoom recording is not available")
         meeting_id = (qs.get("meetingId") or [""])[0]
         origin = (qs.get("originRequestUrl") or [""])[0]
         if not meeting_id:

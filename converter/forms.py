@@ -16,8 +16,18 @@ log = logging.getLogger(__name__)
 
 DEFAULT_TEMPLATE_URL = 'https://docs.google.com/document/d/1S02noSARXsm5hsHUfGO_Rpccq5td_1fe/edit'
 DEFAULT_TEMPLATE_DOCX = Path(__file__).resolve().parent / 'assets' / 'exam_template.docx'
-_FORM_DATA_RE = re.compile(r'var FB_PUBLIC_LOAD_DATA_ = (.*?);</script>', re.S)
-_FORM_ID_RE = re.compile(r'/forms/d/e/([^/]+)|/forms/d/([^/]+)')
+_FORM_DATA_RE  = re.compile(r'var FB_PUBLIC_LOAD_DATA_ = (.*?);</script>', re.S)
+_FORM_ID_RE    = re.compile(r'/forms/d/e/([^/]+)|/forms/d/([^/]+)')
+# Splits question text at inline sub-item boundaries (2+ spaces before label).
+# Captures the label so re.split yields [stem, label1, body1, label2, body2, …].
+_ROMAN_SPLIT_RE = re.compile(
+    r'\s{2,}((?:I{1,3}|IV|VI{0,3}|IX|X)|\d)\.\s+',
+    re.IGNORECASE,
+)
+_ROMAN_MAP = {
+    'I':1,'II':2,'III':3,'IV':4,'V':5,
+    'VI':6,'VII':7,'VIII':8,'IX':9,'X':10,
+}
 _SKIP_TITLES = {
     'email',
     'full name (surname, first name, middle name)',
@@ -152,12 +162,122 @@ def _remove_template_questions(doc) -> None:
         p._element.getparent().remove(p._element)
 
 
+def _strip_section_breaks(doc) -> None:
+    """Remove inline sectPr elements and multi-column body setting.
+
+    The template has a 1-col → 2-col continuous section break that causes some
+    renderers to start the question section on a new page instead of right below
+    the instructions box. Flattening to a single section fixes this.
+    """
+    from docx.oxml.ns import qn as _qn
+    for p in doc.paragraphs:
+        pPr = p._p.find(_qn('w:pPr'))
+        if pPr is not None:
+            for s in pPr.findall(_qn('w:sectPr')):
+                pPr.remove(s)
+    body = doc.element.body
+    body_sectPr = body.find(_qn('w:sectPr'))
+    if body_sectPr is not None:
+        for cols in body_sectPr.findall(_qn('w:cols')):
+            body_sectPr.remove(cols)
+
+
 def _load_template_doc(template_url: str | None) -> Document:
     if template_url is None and DEFAULT_TEMPLATE_DOCX.exists():
-        return Document(DEFAULT_TEMPLATE_DOCX)
+        doc = Document(DEFAULT_TEMPLATE_DOCX)
+        _strip_section_breaks(doc)
+        return doc
 
     template_bytes, _ = convert_doc_template(template_url or DEFAULT_TEMPLATE_URL)
-    return Document(io.BytesIO(template_bytes))
+    doc = Document(io.BytesIO(template_bytes))
+    _strip_section_breaks(doc)
+    return doc
+
+
+def _apply_frame_columns(doc) -> None:
+    """Give the header a full-width text frame and switch the body to 2-column flow.
+
+    Why not a section break?
+    A continuous 1-col → 2-col section break is unreliable across renderers:
+    LibreOffice and some Word versions start the new section on a new page even
+    with type="continuous".
+
+    Why a text frame (framePr)?
+    A framePr paragraph is extracted from the normal text flow and anchored
+    absolutely on the page.  Setting hAnchor="margin", x=0, w=<full-text-width>
+    makes the frame span both columns.  wrap="notBeside" forces all remaining
+    (non-frame) paragraphs to start below the frame's bottom edge, so the 2-column
+    question content begins right below the header box — no section break needed,
+    no renderer dependency.
+
+    Background image: the body sectPr's existing headerReference is untouched, so
+    the bg image from rId11 continues to appear on every page.
+    """
+    from docx.oxml import OxmlElement
+    from docx.oxml.ns import qn
+
+    body_sectPr = doc.element.body.find(qn('w:sectPr'))
+    pg_w, pg_mar_l, pg_mar_r = 12242, 720, 720
+    if body_sectPr is not None:
+        pgSz  = body_sectPr.find(qn('w:pgSz'))
+        pgMar = body_sectPr.find(qn('w:pgMar'))
+        if pgSz  is not None: pg_w     = int(pgSz .get(qn('w:w'),    pg_w))
+        if pgMar is not None:
+            pg_mar_l = int(pgMar.get(qn('w:left'),  pg_mar_l))
+            pg_mar_r = int(pgMar.get(qn('w:right'), pg_mar_r))
+
+    usable_w = pg_w - pg_mar_l - pg_mar_r  # full text-area width in twips
+
+    # Switch body to 2-column newspaper flow
+    for old in body_sectPr.findall(qn('w:cols')):
+        body_sectPr.remove(old)
+    cols_el = OxmlElement('w:cols')
+    cols_el.set(qn('w:num'),   '2')
+    cols_el.set(qn('w:space'), '720')
+    docGrid = body_sectPr.find(qn('w:docGrid'))
+    if docGrid is not None: docGrid.addprevious(cols_el)
+    else:                   body_sectPr.append(cols_el)
+
+    # Apply identical framePr to every header paragraph so they form one unified
+    # full-width frame.  Consecutive paragraphs with identical framePr attributes
+    # are merged into a single frame by the renderer.
+    for p in doc.paragraphs:
+        pPr = p._p.find(qn('w:pPr'))
+        if pPr is None:
+            pPr = OxmlElement('w:pPr')
+            p._p.insert(0, pPr)
+        for old_fp in pPr.findall(qn('w:framePr')):
+            pPr.remove(old_fp)
+        fp = OxmlElement('w:framePr')
+        fp.set(qn('w:w'),       str(usable_w))  # span full text-area width
+        fp.set(qn('w:wrap'),    'notBeside')     # nothing can sit beside the frame
+        fp.set(qn('w:vAnchor'), 'margin')        # y measured from top text margin
+        fp.set(qn('w:hAnchor'), 'margin')        # x measured from left text margin
+        fp.set(qn('w:x'),       '0')
+        fp.set(qn('w:y'),       '0')
+        pPr.insert(0, fp)
+
+
+def _split_roman_subitems(text: str) -> tuple[str, list[tuple[int, str]]]:
+    """Split a question stem that embeds Roman-numeral sub-items into (stem, [(n, text), ...]).
+
+    GForms stores sub-items inline in the question title with heavy whitespace:
+      '57. Stem :     I.        Item1    II.        Item2    III.  Item3'
+    Returns the stem and a list of (arabic_number, item_text) pairs.
+    If no Roman sub-items are found, returns (original_text, []).
+    """
+    parts = _ROMAN_SPLIT_RE.split(text.strip())
+    if len(parts) <= 1:
+        return text.strip(), []
+    stem     = parts[0].strip()
+    subitems = []
+    for i in range(1, len(parts) - 1, 2):
+        label   = parts[i].upper()
+        content = parts[i + 1].strip()
+        if content:
+            num = int(label) if label.isdigit() else _ROMAN_MAP.get(label, i // 2 + 1)
+            subitems.append((num, content))
+    return stem, subitems
 
 
 def _add_section(doc, text: str) -> None:
@@ -168,18 +288,29 @@ def _add_section(doc, text: str) -> None:
 
 def _add_question(doc, text: str) -> None:
     p = doc.add_paragraph()
-    p.paragraph_format.left_indent = Pt(18)
+    p.paragraph_format.left_indent       = Pt(18)
     p.paragraph_format.first_line_indent = Pt(-18)
     text = re.sub(r'^(\d{1,3}\.)([ \t\xa0]*)(\S)', r'\1\t\3', text, count=1)
     p.add_run(text)
     _style_paragraph(p, font_size=9)
 
 
-def _add_choice(doc, text: str) -> None:
+def _add_subitem(doc, num: int, text: str) -> None:
     p = doc.add_paragraph()
-    p.paragraph_format.left_indent = Pt(36)
+    p.paragraph_format.left_indent       = Pt(54)
     p.paragraph_format.first_line_indent = Pt(-18)
-    text = re.sub(r'^([A-D]\.)([ \t\xa0]*)(\S)', r'\1\t\3', text, count=1)
+    p.add_run(f'{num}.\t{text}')
+    _style_paragraph(p, font_size=9)
+
+
+def _add_choice(doc, text: str, index: int = 0) -> None:
+    p = doc.add_paragraph()
+    p.paragraph_format.left_indent       = Pt(36)
+    p.paragraph_format.first_line_indent = Pt(-18)
+    if re.match(r'^[A-D]\.', text.strip()):
+        text = re.sub(r'^([A-D]\.)([ \t\xa0]*)(\S)', r'\1\t\3', text, count=1)
+    else:
+        text = f'{chr(ord("A") + index)}.\t{text}'
     p.add_run(text)
     _style_paragraph(p, font_size=9)
 
@@ -188,14 +319,18 @@ def build_docx(title: str, items: list[dict], template_url: str | None = None) -
     doc = _load_template_doc(template_url)
     _replace_template_title(doc, title)
     _remove_template_questions(doc)
+    _apply_frame_columns(doc)
 
     for item in items:
         if item['type'] == 'section':
             _add_section(doc, item['text'])
         elif item['type'] == 'question':
-            _add_question(doc, item['text'])
-            for choice in item['choices']:
-                _add_choice(doc, choice)
+            stem, subitems = _split_roman_subitems(item['text'])
+            _add_question(doc, stem)
+            for num, sub_text in subitems:
+                _add_subitem(doc, num, sub_text)
+            for ci, choice in enumerate(item['choices']):
+                _add_choice(doc, choice, ci)
 
     buf = io.BytesIO()
     doc.save(buf)
@@ -203,11 +338,20 @@ def build_docx(title: str, items: list[dict], template_url: str | None = None) -
     return buf.read()
 
 
-def convert(url: str, template_url: str | None = None) -> tuple[bytes, str]:
+def convert(url: str, template_url: str | None = None, status_fn=None) -> tuple[bytes, str]:
+    def _status(msg):
+        if status_fn:
+            status_fn(msg)
+
+    _status('Downloading form...')
     html = _download_html(url)
+
+    _status('Processing questions...')
     data = _load_public_data(html)
     title, items = _extract_items(data)
     if not items:
         raise ValueError('No quiz items found in the Google Form.')
     log.info('Parsed Google Form: %s (%d output items)', title, len(items))
+
+    _status('Building DOCX...')
     return build_docx(title, items, template_url=template_url), title

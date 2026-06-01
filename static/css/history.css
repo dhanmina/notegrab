@@ -57,7 +57,8 @@
   flex-shrink: 0;
 }
 
-.history-del {
+.history-del,
+.history-redl {
   background: none;
   border: none;
   color: var(--dim);
@@ -74,4 +75,5 @@
   justify-content: center;
   transition: color 0.12s, background 0.12s;
 }
-.history-del:hover { color: var(--red); background: rgba(239,68,68,0.08); }
+.history-del:hover  { color: var(--red);   background: rgba(239,68,68,0.08); }
+.history-redl:hover { color: var(--green); background: rgba(34,197,94,0.08); }
