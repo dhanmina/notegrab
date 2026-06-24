@@ -149,6 +149,7 @@ def start():
     url = (data.get("url") or "").strip()
     source = (data.get("source") or "gdrive").strip()
     password = (data.get("password") or "").strip()
+    zoom_session = (data.get("zoom_session") or "").strip()
     num_threads = 16
     chunk_size = 1024 * 64
 
@@ -158,7 +159,7 @@ def start():
     prefetched = None
     if source == "zoom":
         try:
-            prefetched = get_zoom_video_info(url, password)
+            prefetched = get_zoom_video_info(url, password, zoom_session=zoom_session)
         except ValueError as e:
             logger.warning("/start zoom auth failed for %s: %s", url, e)
             return jsonify({"error": str(e)}), 400

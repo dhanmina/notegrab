@@ -1,9 +1,10 @@
-// ── Password input ──
+// ── Password / Zoom session inputs ──
 
 document.getElementById("password-inp").addEventListener("input", () => {
   setUrlError("");
   setUrlWarn("");
 });
+
 
 // ── URL input ──
 
@@ -124,7 +125,6 @@ document.getElementById("dl-form").addEventListener("submit", async (e) => {
   const password = effectiveSource === "zoom"
     ? (document.getElementById("password-inp")?.value || "")
     : "";
-
   const result = await fetch("/start", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
