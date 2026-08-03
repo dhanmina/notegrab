@@ -70,7 +70,7 @@ def build_model(chunks: list) -> DocModel:
                 list_defs[it['id']] = it.get('epm', {})
 
     col_sectors.sort(key=lambda x: x[0])
-    text_anns.sort(key=lambda x: x[1] - x[0])  # smallest span first; most-specific wins in get_ts
+    text_anns.sort(key=lambda x: x[1] - x[0])
 
     return DocModel(
         full_text=full_text,
@@ -84,8 +84,6 @@ def build_model(chunks: list) -> DocModel:
 
 
 def extract_image_urls(html: str) -> dict[str, str]:
-    # Scan for individual "s-blob-v1-IMAGE-*": "url" pairs anywhere in the HTML.
-    # Brace-counting the enclosing object misses keys that aren't first in the object.
     result: dict[str, str] = {}
     for m in re.finditer(r'"(s-blob-v1-IMAGE-[^"]+)"\s*:\s*"([^"]+)"', html):
         key = m.group(1)

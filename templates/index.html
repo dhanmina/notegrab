@@ -16,7 +16,6 @@
         <span class="app-name">shhh</span>
       </header>
 
-      <!-- ── Top-level mode nav ── -->
       <div class="mode-nav">
         <button
           class="mode-btn active"
@@ -63,7 +62,6 @@
         </button>
       </div>
 
-      <!-- ── Downloads mode ── -->
       <div id="mode-downloads">
         <section class="input-section">
           <div class="source-toggle">
@@ -198,9 +196,7 @@
         </div>
       </div>
 
-      <!-- ── Flashcard mode ── -->
       <div id="mode-flashcard" style="display: none">
-        <!-- ── Home / list screen ── -->
         <div id="fc-home" style="display: none">
           <div class="fc-home-bar">
             <div class="fc-search-wrap">
@@ -287,7 +283,6 @@
           </div>
         </div>
 
-        <!-- ── Create / Edit form ── -->
         <div id="fc-form-wrap" style="display: none">
           <div class="fc-form-header">
             <button class="fc-back-btn" type="button" onclick="fcCancelForm()">
@@ -379,7 +374,6 @@
 
           <div class="fc-ans-grid" id="fc-ans-grid"></div>
 
-          <!-- Replace confirmation modal -->
           <div
             class="fc-modal-backdrop"
             id="fc-replace-modal"
@@ -429,13 +423,11 @@
           </button>
         </div>
 
-        <!-- ── Loading ── -->
         <div id="fc-loading" style="display: none" class="fc-loading">
           <div class="fc-spin"></div>
           Parsing questions…
         </div>
 
-        <!-- ── Study screen ── -->
         <div id="fc-study" style="display: none">
           <div class="fc-study-bar">
             <button class="fc-back-btn" type="button" onclick="fcExitStudy()">
@@ -497,9 +489,7 @@
             </div>
           </div>
         </div>
-        <!-- /fc-study -->
 
-        <!-- ── Done screen ── -->
         <div id="fc-done" style="display: none">
           <div class="fc-done-inner">
             <div class="fc-done-score">

@@ -17,7 +17,7 @@ from converter import convert_form as gforms_convert
 
 logger = logging.getLogger(__name__)
 
-PART_SIZE = 4 * 1024 * 1024  # 4 MB per part
+PART_SIZE = 4 * 1024 * 1024
 
 DOWNLOADS_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "downloads")
 os.makedirs(DOWNLOADS_DIR, exist_ok=True)

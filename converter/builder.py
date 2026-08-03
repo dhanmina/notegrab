@@ -81,19 +81,12 @@ def _split_paragraphs(full_text: str, base: int) -> list[tuple[str, int | None, 
     if seg < len(full_text):
         paragraphs.append((full_text[seg:], None, seg))
 
-    # Drop leading empty paragraphs that exist only as logo spacers in the original.
-    # After cleaning, these contain nothing visible (only private-use chars like ).
     while paragraphs and not clean(paragraphs[0][0]).strip():
         paragraphs.pop(0)
 
-    # Drop trailing paragraphs that are empty or are the "| Page" page-number artifact
-    # (Google Docs embeds a private-use glyph + "| Page" label in the body as a field).
     while paragraphs and not clean(paragraphs[-1][0]).strip().lstrip('| ').lower().replace('page', '').strip():
         paragraphs.pop()
 
-    # Collapse runs of consecutive blank paragraphs down to one.
-    # Source docs often have 2–3 blank lines between a situation header and the
-    # first question, which creates a large visible gap in the output.
     result: list[tuple[str, int | None, int]] = []
     prev_blank = False
     for para in paragraphs:
@@ -103,8 +96,6 @@ def _split_paragraphs(full_text: str, base: int) -> list[tuple[str, int | None, 
         result.append(para)
         prev_blank = is_blank
 
-    # Drop blank paragraphs immediately before OR after a Situation header so
-    # the GDocs output matches GForms (no gap around section headers).
     filtered: list[tuple[str, int | None, int]] = []
     for i, para in enumerate(result):
         if not clean(para[0]).strip():
@@ -131,7 +122,6 @@ def _apply_paragraph_format(p, ps: dict, la) -> None:
 
     pf = p.paragraph_format
 
-    # ps_ifl is an absolute position; first_line_indent in OOXML is relative to left_indent
     il = ps.get('ps_il')
     if il is not None and not ps.get('ps_il_i', True):
         pf.left_indent = Pt(il)
@@ -141,7 +131,6 @@ def _apply_paragraph_format(p, ps: dict, la) -> None:
     elif la is not None and il is not None and not ps.get('ps_il_i', True):
         pf.first_line_indent = Pt(-18)
 
-    # Default to 0 to suppress Word's Normal-style spacing
     sb = ps.get('ps_sb')
     pf.space_before = Pt(sb) if sb is not None and not ps.get('ps_sb_i', True) else Pt(0)
     sa = ps.get('ps_sa')
@@ -181,20 +170,17 @@ def _apply_manual_question_format(p, para_text: str, pep: int | None, model: Doc
     if pf.first_line_indent is None:
         pf.first_line_indent = Pt(-18)
 
-    # These rows are typed numbers in Google Docs, not list annotations. Replace
-    # the separator with a tab so they align like real numbered-list rows.
     return _MANUAL_NUMBERED_ITEM_RE.sub(r'\1\t\3', para_text, count=1)
 
 
 def _add_text_runs(p, para_text: str, str_start: int, base: int, text_anns: list) -> None:
-    # Split on \x0b (soft return) BEFORE cleaning so positions stay aligned
     para_start = base + str_start
     sub_off = 0
     for seg_i, segment in enumerate(para_text.split('\x0b')):
         if seg_i > 0:
             r = p.add_run()
             r.add_break()
-            sub_off += 1  # consume the \x0b
+            sub_off += 1
         if not segment:
             sub_off += len(segment)
             continue
@@ -215,7 +201,7 @@ def _add_text_runs(p, para_text: str, str_start: int, base: int, text_anns: list
 
 def _build_paragraphs(doc: Document, paragraphs: list, model: DocModel) -> None:
     list_ctrs: dict = {}
-    list_base_il: dict = {}  # ls_id -> minimum indent seen (parent level)
+    list_base_il: dict = {}
     for idx, (para_text, pep, str_start) in enumerate(paragraphs):
         ps = model.para_styles.get(pep, {}) if pep else {}
         la = model.list_anns.get(pep)
@@ -223,9 +209,6 @@ def _build_paragraphs(doc: Document, paragraphs: list, model: DocModel) -> None:
 
         _apply_paragraph_format(p, ps, la)
 
-        # Normalize list-item indent: source docs sometimes place numbered
-        # sub-items at question-level (18pt) instead of choice-level (36pt).
-        # Promote them so all list items sit at a consistent 36pt indent.
         if la and p.paragraph_format.left_indent is not None:
             if abs(p.paragraph_format.left_indent.pt - 18) < 1:
                 p.paragraph_format.left_indent       = Pt(36)
@@ -239,7 +222,6 @@ def _build_paragraphs(doc: Document, paragraphs: list, model: DocModel) -> None:
                 list_base_il[ls_id] = ps_il
             base_il = list_base_il[ls_id]
 
-            # Returning to the parent indent: reset sub-level counters so they restart
             if abs(ps_il - base_il) < 1:
                 for k in [k for k in list(list_ctrs) if k[0] == ls_id and k[2] != round(ps_il)]:
                     del list_ctrs[k]
@@ -265,9 +247,6 @@ def _apply_final_columns(doc: Document, col_sectors: list, last_pep: int | None 
     if not col_sectors:
         return
     if last_pep is not None:
-        # Use the column count actually in effect at the last paragraph position.
-        # This handles documents that end inside a multi-col section where the
-        # final col_sector entry is single-col (the trailing sentinel sectors).
         n, space_tw = get_cols_at(last_pep, col_sectors)
         if n <= 1:
             return
@@ -287,8 +266,6 @@ def _apply_final_columns(doc: Document, col_sectors: list, last_pep: int | None 
         wcols = OxmlElement('w:cols')
         wcols.set(qn('w:num'), str(n))
         wcols.set(qn('w:space'), str(space_tw))
-        # OOXML schema requires w:cols to precede w:docGrid; appending at the end
-        # puts it after w:docGrid and Word silently ignores the column setting.
         docGrid = sectPr.find(qn('w:docGrid'))
         if docGrid is not None:
             docGrid.addprevious(wcols)
@@ -301,24 +278,9 @@ _SMALL_NUM_RE = re.compile(r'^[1-9]\.\t')
 
 
 def _normalize_subitems(doc: Document) -> None:
-    """Indent numbered sub-items one level deeper than A/B/C/D choices.
-
-    Target indent hierarchy:
-      li=18  →  question number  (N. Question text?)
-      li=36  →  lettered choice  (A. / B. / C. / D.)
-      li=54  →  numeric sub-item (1. / 2. / 3. …)
-
-    Two passes:
-      1. Manual runs: ≥2 consecutive li=18 small-number paragraphs → promote
-         to 54pt.  Single-digit question numbers (Q1–Q9) stand alone, never
-         appear as two consecutive small-numbered paragraphs.
-      2. List-annotated items already at 36pt with numeric label → deepen to
-         54pt so they match manually-formatted sub-items.
-    """
     paras = doc.paragraphs
     n = len(paras)
 
-    # Pass 1 — manual (no list annotation) sub-item runs
     i = 0
     while i < n:
         pf = paras[i].paragraph_format
@@ -351,7 +313,6 @@ def _normalize_subitems(doc: Document) -> None:
         else:
             i += 1
 
-    # Pass 2 — list-annotated sub-items already at 36pt with numeric label
     for p in paras:
         pf = p.paragraph_format
         if pf.left_indent is None or abs(pf.left_indent.pt - 36) > 1:
@@ -370,24 +331,13 @@ def _bold_situation_paragraphs(doc: Document) -> None:
 
 
 def _fix_column_transition(doc: Document) -> None:
-    """Replace 1-col→N-col continuous section breaks with a full-width framePr header.
-
-    builder.py uses inline sectPrs (type=continuous, cols=1) to model column
-    transitions inherited from Google Docs.  These are renderer-unreliable: some
-    renderers start the multi-column section on a new page.
-
-    Fix: find the first such transition, apply identical framePr to every preceding
-    paragraph so they form one full-width frame above the columns, then remove the
-    inline sectPr.  The body sectPr's multi-column setting is kept as-is.
-    """
     body_sectPr = doc.element.body.find(qn('w:sectPr'))
     if body_sectPr is None:
         return
     body_cols_el = body_sectPr.find(qn('w:cols'))
     if body_cols_el is None or int(body_cols_el.get(qn('w:num'), '1')) <= 1:
-        return  # single-column document — nothing to fix
+        return
 
-    # Locate the first inline sectPr that is continuous and single-column
     transition_idx = None
     for i, p in enumerate(doc.paragraphs):
         pPr = p._p.find(qn('w:pPr'))
@@ -407,7 +357,6 @@ def _fix_column_transition(doc: Document) -> None:
     if transition_idx is None:
         return
 
-    # Compute usable page width from body sectPr geometry
     pg_w, pg_mar_l, pg_mar_r = 12242, 720, 720
     pgSz  = body_sectPr.find(qn('w:pgSz'))
     pgMar = body_sectPr.find(qn('w:pgMar'))
@@ -417,7 +366,6 @@ def _fix_column_transition(doc: Document) -> None:
         pg_mar_r = int(pgMar.get(qn('w:right'), pg_mar_r))
     usable_w = pg_w - pg_mar_l - pg_mar_r
 
-    # Apply identical framePr to all header paragraphs so they form one full-width frame
     for p in doc.paragraphs[:transition_idx + 1]:
         pPr = p._p.find(qn('w:pPr'))
         if pPr is None:
@@ -434,7 +382,6 @@ def _fix_column_transition(doc: Document) -> None:
         fp.set(qn('w:y'),       '0')
         pPr.insert(0, fp)
 
-    # Remove the now-redundant inline sectPr from the transition paragraph
     pPr = doc.paragraphs[transition_idx]._p.find(qn('w:pPr'))
     if pPr is not None:
         for sp in pPr.findall(qn('w:sectPr')):
@@ -507,14 +454,12 @@ def _populate_footer_paragraph(fp) -> None:
         r.append(rpr)
         return r
 
-    # begin
     r_begin = _make_run()
     fc_begin = OxmlElement('w:fldChar')
     fc_begin.set(qn('w:fldCharType'), 'begin')
     r_begin.append(fc_begin)
     fp._p.append(r_begin)
 
-    # instr
     r_instr = _make_run()
     instr = OxmlElement('w:instrText')
     instr.set(qn('xml:space'), 'preserve')
@@ -522,7 +467,6 @@ def _populate_footer_paragraph(fp) -> None:
     r_instr.append(instr)
     fp._p.append(r_instr)
 
-    # separate + display value (Word replaces "1" with the real page number)
     r_sep = _make_run()
     fc_sep = OxmlElement('w:fldChar')
     fc_sep.set(qn('w:fldCharType'), 'separate')
@@ -535,7 +479,6 @@ def _populate_footer_paragraph(fp) -> None:
     r_val.append(t)
     fp._p.append(r_val)
 
-    # end
     r_end = _make_run()
     fc_end = OxmlElement('w:fldChar')
     fc_end.set(qn('w:fldCharType'), 'end')

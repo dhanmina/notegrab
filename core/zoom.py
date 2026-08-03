@@ -35,7 +35,6 @@ def _base_url(url: str) -> str:
 
 
 def _js_to_json(code: str) -> str:
-    """Convert JS object literal to valid JSON."""
     code = re.sub(r'//[^\n]*', '', code)
     def _fix_quotes(m):
         inner = m.group(1).replace('\\"', '\\\\"').replace('"', '\\"')
@@ -47,7 +46,6 @@ def _js_to_json(code: str) -> str:
 
 
 def _extract_balanced(html: str, start_marker: str) -> str | None:
-    """Find start_marker in html, then extract the balanced {} block that follows."""
     idx = html.find(start_marker)
     if idx < 0:
         return None
@@ -110,10 +108,6 @@ def _find_form(html: str) -> dict | None:
 
 def _validate_passwd_nws(session: requests.Session, base_url: str, meeting_id: str,
                          passwd: str, action: str = "viewdetailpage") -> bool:
-    """
-    New NWS validate-passwd endpoint — requires the session to have a valid Zoom login.
-    Returns True on success, False otherwise.
-    """
     endpoint = f"{base_url}nws/recording/1.0/play/validate-passwd"
     payload = {"id": meeting_id, "passwd": passwd, "action": action}
     headers = {
@@ -133,9 +127,6 @@ def _validate_passwd_nws(session: requests.Session, base_url: str, meeting_id: s
 
 def _validate_passwd(session: requests.Session, base_url: str, meeting_id: str,
                      passwd: str, use_meeting: bool, action: str = "viewdetailpage") -> bool | None:
-    """
-    Returns True on success, False on wrong password, None if the API is deprecated.
-    """
     endpoint = base_url + f"rec/validate{'_meet' if use_meeting else ''}_passwd"
     payload = {
         "id": meeting_id,
@@ -164,11 +155,6 @@ def _validate_passwd(session: requests.Session, base_url: str, meeting_id: str,
 
 def _auth_via_share_page(session: requests.Session, base_url: str,
                           meeting_id: str, password: str) -> dict | None:
-    """
-    Fallback for deprecated validate_passwd.
-    Loads the share page with ?pwd= and tries to parse window.__data__.
-    Returns page_data dict on success (may be empty {}), None on failure.
-    """
     import base64
     share_url = f"{base_url}rec/share/{meeting_id}"
     for pwd in (password, base64.b64encode(password.encode()).decode()):
@@ -205,21 +191,16 @@ def _get_play_info(session: requests.Session, base_url: str, file_id: str,
 
 
 def _is_play_info_auth_challenge(info: dict) -> bool:
-    """True when play/info returned a password/redirect challenge instead of video data."""
     return bool(info.get("componentName") or info.get("needRedirect"))
 
 
 def _resolve_share_to_play(session: requests.Session, base_url: str,
                             share_url: str, password: str) -> str:
-    """
-    Given a share URL, authenticate and return the play URL.
-    """
     resp = session.get(share_url)
     html = resp.text
     logger.info("share page status=%d url=%s", resp.status_code, resp.url)
     logger.debug("share page snippet: %s", html[:1000])
 
-    # HTML password form on share page
     form = _find_form(html)
     logger.info("share page password form found: %s", form is not None)
     if form is not None:
@@ -250,9 +231,6 @@ def _resolve_share_to_play(session: requests.Session, base_url: str,
 
 def _resolve_meeting_to_play(session: requests.Session, base_url: str,
                               meeting_id: str, password: str) -> str:
-    """
-    Given a meetingId, authenticate via API and return the play URL.
-    """
     share_info_url = f"{base_url}nws/recording/1.0/play/share-info/{meeting_id}"
     resp = session.get(share_info_url)
     result = resp.json().get("result", {})
@@ -272,19 +250,17 @@ def _resolve_meeting_to_play(session: requests.Session, base_url: str,
             result.get("action", "viewdetailpage"),
         )
         if ok is None:
-            # Old endpoint deprecated — try the new NWS endpoint (requires Zoom login cookie)
             challenge_id = result.get("meetingId", meeting_id)
             ok_nws = _validate_passwd_nws(session, base_url, challenge_id, password,
                                           result.get("action", "viewdetailpage"))
             if not ok_nws:
-                # NWS endpoint also failed (no Zoom session) — fall back to share-page ?pwd= cookies
                 page_data = _auth_via_share_page(session, base_url, meeting_id, password)
                 if page_data is None:
                     raise ValueError(
                         "This recording requires a Zoom login to access. "
                         "Please provide your Zoom session cookie (_zm_ssid) in the advanced field."
                     )
-                session._share_page_data = page_data  # type: ignore[attr-defined]
+                session._share_page_data = page_data
         elif not ok:
             raise ValueError("Wrong password")
         resp2 = session.get(share_info_url)
@@ -305,14 +281,6 @@ def _resolve_meeting_to_play(session: requests.Session, base_url: str,
 
 def get_zoom_video_info(url: str, password: str = "",
                         zoom_session: str = "") -> tuple[str, str, dict, str]:
-    """
-    Returns (video_url, title, cookies, referer_base_url).
-    Raises ValueError on auth failure or missing video.
-
-    zoom_session: optional _zm_ssid cookie value from a logged-in Zoom browser session.
-                  Required for password-protected recordings since Zoom deprecated
-                  anonymous password validation.
-    """
     session = requests.Session()
     session.headers.update(_HEADERS)
     base = _base_url(url)
@@ -323,9 +291,7 @@ def get_zoom_video_info(url: str, password: str = "",
     parsed = urlparse(url)
     path = parsed.path
 
-    # ── Determine URL type and get play URL ──
     if '/rec/share/' in path:
-        # Zoom's SPA no longer embeds window.__data__ — try API with share token first
         share_token = path.rstrip('/').split('/')[-1]
         logger.info("share URL: trying API with token prefix %s…", share_token[:16])
         try:
@@ -344,7 +310,6 @@ def get_zoom_video_info(url: str, password: str = "",
         origin = (qs.get("originRequestUrl") or [""])[0]
         if not meeting_id:
             raise ValueError("Could not extract meetingId from component-page URL")
-        # Seed session cookies from the original share URL before API calls
         if origin:
             logger.info("component-page: seeding cookies from origin: %s", origin)
             try:
@@ -353,8 +318,6 @@ def get_zoom_video_info(url: str, password: str = "",
                 pass
         play_url = _resolve_meeting_to_play(session, base, meeting_id, password)
 
-        # Zoom returns a captcha redirect (component-page loop) when bot detection triggers.
-        # After validate_passwd, the session has auth cookies — try play/info directly.
         if '/rec/component-page' in urlparse(play_url).path:
             logger.info("component-page: captcha redirect — trying direct play/info with meetingId")
             play_info = _get_play_info(session, base, meeting_id, passwd=password)
@@ -369,7 +332,6 @@ def get_zoom_video_info(url: str, password: str = "",
         play_url = url
         if "continueMode" not in play_url:
             play_url += ("&" if "?" in play_url else "?") + "continueMode=true"
-        # Authenticate via originRequestUrl if present and password provided
         qs_play = parse_qs(parsed.query)
         origin = (qs_play.get("originRequestUrl") or [""])[0]
         if origin and password:
@@ -385,14 +347,12 @@ def get_zoom_video_info(url: str, password: str = "",
 
     logger.info("Play URL: %s", play_url)
 
-    # ── Try to get fileId from the play URL path directly ──
     file_id = None
     m = re.search(r'/rec/(?:recording/)?play/([^?&#/]+)', play_url)
     if m:
         file_id = m.group(1)
         logger.info("fileId from URL path: %s", file_id)
 
-    # ── Fall back: load play page and parse window.__data__ ──
     if not file_id:
         session.headers["Referer"] = base
         resp = session.get(play_url)
@@ -419,12 +379,9 @@ def get_zoom_video_info(url: str, password: str = "",
             logger.error("Could not find fileId. play_url=%s page_snippet=%s", play_url, snippet)
             raise ValueError("Could not extract fileId from play page — see server log for details")
 
-    # ── Fetch play info (try with password if available) ──
     play_info = _get_play_info(session, base, file_id, passwd=password, referer=play_url)
     logger.info("play_info keys: %s", list(play_info.keys()))
 
-    # When play/info returns an auth challenge, retry after loading the play page
-    # to pick up any cookies Zoom sets during a normal browser visit.
     if _is_play_info_auth_challenge(play_info) and file_id:
         logger.info("play_info auth challenge — loading play page to seed cookies then retrying")
         try:
@@ -439,11 +396,9 @@ def get_zoom_video_info(url: str, password: str = "",
                                       form.get("useWhichPasswd") == "meeting",
                                       form.get("action", ""))
                 if ok is None:
-                    # Even the play-page form uses the deprecated API — try ?pwd= on the play URL
                     session.get(play_url + ("&" if "?" in play_url else "?") + f"pwd={password}", timeout=15)
                 resp = session.get(play_url, timeout=20)
                 play_html = resp.text
-            # Check if page data has video URLs directly
             play_data = _parse_page_data(play_html)
             if play_data:
                 for key in ("viewMp4WithshareUrl", "viewMp4Url", "shareMp4Url"):
@@ -451,12 +406,10 @@ def get_zoom_video_info(url: str, password: str = "",
                         title = play_data.get("meet", {}).get("topic") or "Zoom Recording"
                         logger.info("Resolved video from play page __data__ via %s", key)
                         return play_data[key], title, dict(session.cookies), base
-                # Update file_id from play page data if it differs
                 if play_data.get("fileId"):
                     file_id = play_data["fileId"]
         except Exception as e:
             logger.warning("play page seed attempt failed: %s", e)
-        # Retry play/info with updated cookies
         play_info = _get_play_info(session, base, file_id, passwd=password, referer=play_url)
         logger.info("play_info retry keys: %s", list(play_info.keys()))
 
@@ -467,18 +420,11 @@ def get_zoom_video_info(url: str, password: str = "",
             logger.info("Resolved video via %s: %s", key, title)
             return play_info[key], title, dict(session.cookies), base
 
-    # HTTP approach exhausted — Zoom's auth now requires JavaScript execution.
-    # Fall back to Playwright (headless browser) which runs the real SPA.
     logger.info("HTTP approach failed — trying Playwright fallback")
     return _get_zoom_info_playwright(url, password)
 
 
 def _get_zoom_info_playwright(url: str, password: str) -> tuple[str, str, dict, str]:
-    """
-    Use a headless Chromium browser to authenticate with Zoom's SPA, then call
-    play/info from within the authenticated browser context to get the video URL.
-    Raises ValueError if the video URL cannot be found.
-    """
     try:
         from playwright.sync_api import sync_playwright, TimeoutError as PWTimeout
     except ImportError:
@@ -500,9 +446,6 @@ def _get_zoom_info_playwright(url: str, password: str) -> tuple[str, str, dict, 
     result_box: list = []
     error_box: list[str] = []
 
-    # Extract the play URL to navigate to after password auth.
-    # For share URLs this is the same as nav_url (share page → password → play URL).
-    # For play URLs we already have the play URL directly.
     play_url_for_nav = url if "/rec/play/" in parsed.path else None
 
     def run():
@@ -523,7 +466,6 @@ def _get_zoom_info_playwright(url: str, password: str) -> tuple[str, str, dict, 
                         page.wait_for_selector('input[type="password"]', timeout=10_000)
                         page.fill('input[type="password"]', password)
                         logger.info("Playwright: filled password form")
-                        # Submit password; the SPA then processes auth on component-page.
                         page.keyboard.press("Enter")
                         logger.info("Playwright: password submitted")
                     except PWTimeout:
@@ -533,8 +475,6 @@ def _get_zoom_info_playwright(url: str, password: str) -> tuple[str, str, dict, 
                 play_info_result: dict = {}
                 title = "Zoom Recording"
 
-                # After password, SPA may land on component-page showing recording
-                # details.  Wait for it to settle, then click the "Watch" button.
                 page.wait_for_timeout(3_000)
                 if "component-page" in page.url:
                     logger.info("Playwright: on component-page — clicking Watch button")
@@ -547,7 +487,6 @@ def _get_zoom_info_playwright(url: str, password: str) -> tuple[str, str, dict, 
                         except Exception:
                             pass
 
-                # Wait for the SPA to reach the play URL (natural or via click)
                 if "/rec/play/" not in page.url:
                     logger.info("Playwright: waiting for SPA to reach play URL")
                     try:
@@ -557,11 +496,8 @@ def _get_zoom_info_playwright(url: str, password: str) -> tuple[str, str, dict, 
                         logger.info("Playwright: pushing to play URL directly")
                         page.goto(target_play, wait_until="domcontentloaded", timeout=30_000)
 
-                # Give the SPA time to complete its play/info sequence
                 time.sleep(5)
 
-                # Extract file_id from the CURRENT URL (SPA may have resolved a
-                # different file than what was in the original URL)
                 m = re.search(r'/rec/play/([^?&#/]+)', page.url)
                 file_id = m.group(1) if m else None
                 if not file_id:

@@ -1,5 +1,3 @@
-// ── Shared state ──
-
 let titleReady          = false;
 let titleTimer          = null;
 let _clearTimer         = null;
@@ -11,8 +9,6 @@ const activeDownloads    = new Set();
 const completedDownloads = new Set();
 const expiryTimers       = new Map();
 
-// ── DOM refs ──
-
 const urlEl    = document.getElementById("url");
 const dlBtn    = document.getElementById("dl-btn");
 const btnText  = document.getElementById("btn-text");
@@ -21,16 +17,12 @@ const urlError = document.getElementById("url-error");
 const urlWarn  = document.getElementById("url-warn");
 const clearBtn = document.querySelector(".history-clear-btn");
 
-// ── URL helpers ──
-
 function getValidUrl(text) {
   const v = text.trim();
   if (currentSource === "video") return (isValidZoomUrl(v) || isValidDriveUrl(v)) ? v : null;
   if (currentSource === "docs")  return (isValidGdocsUrl(v) || isValidGformsUrl(v)) ? v : null;
   return null;
 }
-
-// ── Tabs ──
 
 function switchTab(name) {
   document.querySelectorAll(".tab-btn").forEach((b) =>
@@ -40,8 +32,6 @@ function switchTab(name) {
     p.classList.toggle("active", p.id === `pane-${name}`)
   );
 }
-
-// ── Badge & empty states ──
 
 function updateDownloadsBadge() {
   const badge = document.getElementById("downloads-badge");
@@ -65,8 +55,6 @@ function updateHistoryEmpty() {
   if (empty)   empty.style.display   = hasItems ? "none" : "";
   if (toolbar) toolbar.style.display = hasItems ? ""     : "none";
 }
-
-// ── Button & input state ──
 
 function syncBtn() {
   const valid = !!getValidUrl(urlEl.value) && titleReady;
@@ -100,8 +88,6 @@ function resetForm() {
   urlEl.focus();
 }
 
-// ── Password toggle ──
-
 function togglePassword() {
   const inp = document.getElementById("password-inp");
   const show = inp.type === "password";
@@ -109,8 +95,6 @@ function togglePassword() {
   document.getElementById("pw-eye").style.display     = show ? "none" : "";
   document.getElementById("pw-eye-off").style.display = show ? ""     : "none";
 }
-
-// ── Mode switcher ──
 
 function setMode(mode) {
   const isFlashcard = mode === 'flashcard';
@@ -120,8 +104,6 @@ function setMode(mode) {
   document.getElementById('modetab-flashcard').classList.toggle('active', isFlashcard);
   if (isFlashcard) fcInit();
 }
-
-// ── Source toggle ──
 
 function setSource(src) {
   currentSource       = src;

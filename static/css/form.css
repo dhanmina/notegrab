@@ -1,5 +1,3 @@
-/* ── Source toggle ── */
-
 .source-toggle {
   display: flex;
   gap: 4px;
@@ -36,8 +34,6 @@
   color: var(--text);
   box-shadow: 0 1px 3px rgba(0,0,0,0.25);
 }
-
-/* ── Password field ── */
 
 .password-row { margin-bottom: 16px; animation: rise 0.18s ease both; }
 
@@ -76,8 +72,6 @@
   transition: color 0.15s;
 }
 .pw-toggle:hover { color: var(--text); }
-
-/* ── URL input ── */
 
 .input-section { padding-bottom: 24px; }
 
@@ -128,8 +122,6 @@
 .url-error { color: var(--red); }
 .url-warn  { color: var(--amber); }
 .url-error.on, .url-warn.on { display: block; }
-
-/* ── Download button ── */
 
 .dl-btn {
   width: 100%;

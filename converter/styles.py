@@ -10,19 +10,12 @@ ALIGN_MAP = {
 }
 TAB_ALIGN_MAP = {0: 'left', 1: 'center', 2: 'right', 3: 'decimal'}
 
-# Strip XML-illegal chars and private-use area (U+E000–U+F8FF).
-# Uses explicit hex escapes to avoid regex parser treating adjacent char
-# literals (U+D7FF U+F900) as a range that would cover private-use chars.
 CLEAN_RE = re.compile(
     r'[^\x09\x20-\x7E\xA0-\uD7FF\uF900-\uFDFF\uFE10-\uFFEF]'
 )
 
-# Collapse runs of non-breaking spaces (U+00A0) to a single regular space.
-# Google Docs pads question numbers with varying counts of \xa0 which causes
-# inconsistent indentation in the output (e.g. "17.    text" vs "16. text").
 _NBSP_RUN_RE = re.compile(r'\xA0[\xA0\x20]+|\x20[\xA0\x20]*\xA0[\xA0\x20]*')
 
-# ts_ff/ts_fs are reliable even when inherited; bold/italic must be explicit
 _TS_TRUST_INHERITED = {'ts_ff', 'ts_fs'}
 
 
@@ -36,9 +29,6 @@ def ts_explicit(sm: dict) -> dict:
     return {k: v for k, v in sm.items() if not k.endswith('_i') and v is not None}
 
 
-# Bold/italic from an annotation that started before the paragraph boundary is a
-# cross-paragraph carry-over (e.g. a Situation header span bleeding into question
-# items). Exclude it so only intra-paragraph bold/italic takes effect.
 _TS_NO_CROSS_PARA = {'ts_bd', 'ts_it'}
 
 
@@ -75,7 +65,7 @@ def style_run(run, ts: dict) -> None:
         if h and h.lower() != '000000':
             try:
                 rv, gv, bv = int(h[:2], 16), int(h[2:4], 16), int(h[4:], 16)
-                if not (rv > 240 and gv > 240 and bv > 240):  # skip near-white; invisible on white DOCX bg
+                if not (rv > 240 and gv > 240 and bv > 240):
                     run.font.color.rgb = RGBColor(rv, gv, bv)
             except Exception:
                 pass

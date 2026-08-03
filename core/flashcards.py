@@ -7,8 +7,6 @@ from datetime import datetime
 
 from . import gist_store
 
-# ── file-based storage (local dev fallback when gist env vars are not set) ──
-
 SETS_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "flashcards")
 os.makedirs(SETS_DIR, exist_ok=True)
 _MARKER    = "flashcard_set"
@@ -73,8 +71,6 @@ def _unique_filename(title: str, exclude_id: str | None = None) -> str:
             return candidate
         i += 1
 
-
-# ── public API ───────────────────────────────────────────────────────────────
 
 def load() -> list:
     if gist_store.enabled():

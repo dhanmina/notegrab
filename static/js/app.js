@@ -1,12 +1,8 @@
-// ── Password / Zoom session inputs ──
-
 document.getElementById("password-inp").addEventListener("input", () => {
   setUrlError("");
   setUrlWarn("");
 });
 
-
-// ── URL input ──
 
 urlEl.addEventListener("input", (e) => {
   clearTimeout(titleTimer);
@@ -96,13 +92,9 @@ async function fetchTitle(url) {
   }
 }
 
-// ── Job control ──
-
 async function controlJob(action, jobId) {
   await fetch(`/${action}/${jobId}`, { method: "POST" });
 }
-
-// ── Form submit ──
 
 document.getElementById("dl-form").addEventListener("submit", async (e) => {
   e.preventDefault();
@@ -155,8 +147,6 @@ document.getElementById("dl-form").addEventListener("submit", async (e) => {
   switchTab("downloads");
   resetForm();
 });
-
-// ── Init ──
 
 syncBtn();
 updateDownloadsEmpty();

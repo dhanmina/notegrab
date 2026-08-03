@@ -1,5 +1,3 @@
-// ── State ──
-
 let fcSets       = [];
 let fcLoaded     = false;
 let fcCurrentSet = null;
@@ -14,8 +12,6 @@ let fcOk        = 0;
 let fcNo        = 0;
 let fcAnswered  = false;
 
-// ── Screen management ──
-
 function fcShow(screenId) {
   ['fc-home', 'fc-form-wrap', 'fc-loading', 'fc-study', 'fc-done'].forEach(id => {
     const el = document.getElementById(id);
@@ -24,8 +20,6 @@ function fcShow(screenId) {
   const nav = document.querySelector('.mode-nav');
   if (nav) nav.style.display = screenId === 'fc-study' ? 'none' : '';
 }
-
-// ── Init ──
 
 async function fcInit() {
   if (fcLoaded) {
@@ -45,8 +39,6 @@ async function fcInit() {
   fcRenderHome();
   fcShow('fc-home');
 }
-
-// ── Home ──
 
 function fcOnSearch(q) {
   fcSearchQ = q;
@@ -95,8 +87,6 @@ function fcCardHTML(s) {
     </div>`;
 }
 
-// ── Create / Edit form ──
-
 function fcShowForm(id) {
   fcEditingId = id || null;
   const heading  = document.getElementById('fc-form-heading');
@@ -140,8 +130,6 @@ function fcOnUrlInput() {
   fcSetError('');
   fcSyncSave();
 }
-
-// ── Answer key grid ──
 
 let fcActiveCell    = -1;
 let fcExpectedCount = 0;
@@ -234,7 +222,6 @@ function fcKbPaste(e) {
   else { fcCell(fcActiveCell)?.classList.remove('active'); fcActiveCell = -1; }
 }
 
-// Paste strip — paste event fills from position 0 (full replace); typing fills from first empty cell
 function fcInitPasteStrip() {
   const input = document.getElementById('fc-paste-inp');
   if (!input || input._fcInited) return;
@@ -277,7 +264,6 @@ function fcHandlePasteStrip(input) {
   input.value   = cleaned;
 
   if (fcEditingId && fcExpectedCount > 0) {
-    // In edit mode: accumulate silently, only act when count matches
     if (cleaned.length === fcExpectedCount) {
       fcSetError('');
       input.value = '';
@@ -286,7 +272,6 @@ function fcHandlePasteStrip(input) {
     return;
   }
 
-  // Create mode: fill from first empty cell
   if (!cleaned.length) return;
   const cells    = [...document.querySelectorAll('.fc-ans-cell[data-idx]')];
   const from     = cells.findIndex(c => !c.dataset.value);
@@ -416,8 +401,6 @@ async function fcSaveForm() {
   }
 }
 
-// ── Study ──
-
 function fcStudySet(id) {
   const s = fcSets.find(x => x.id === id);
   if (!s || !s.questions || s.questions.length === 0) return;
@@ -451,8 +434,6 @@ function fcEditCurrentSet() {
   else    fcShow('fc-home');
 }
 
-// ── Render card ──
-
 function fcRenderCard() {
   const q    = fcQuestions[fcOrder[fcIdx]];
   fcAnswered = false;
@@ -480,8 +461,6 @@ function fcRenderCard() {
   const qZone = document.getElementById('fc-study').querySelector('.fc-q-zone');
   if (qZone) qZone.scrollTop = 0;
 }
-
-// ── Pick ──
 
 function fcPick(picked) {
   if (fcAnswered) return;
@@ -516,8 +495,6 @@ function fcPick(picked) {
   nextBtn.disabled    = false;
 }
 
-// ── Advance ──
-
 function fcNext() {
   if (fcIdx < fcOrder.length - 1) {
     fcIdx++;
@@ -528,8 +505,6 @@ function fcNext() {
   }
 }
 
-// ── Header sync ──
-
 function fcSyncHeader() {
   const total   = fcOrder.length;
   const current = Math.min(fcIdx + 1, total);
@@ -538,8 +513,6 @@ function fcSyncHeader() {
   document.getElementById('fc-score-ok').textContent  = fcOk;
   document.getElementById('fc-score-no').textContent  = fcNo;
 }
-
-// ── Done ──
 
 function fcShowDone() {
   const total = fcOrder.length;
@@ -576,8 +549,6 @@ function fcDoWrongOnly() {
   fcSyncHeader();
 }
 
-// ── Shuffle ──
-
 function fcShuffle(arr) {
   const a = [...arr];
   for (let i = a.length - 1; i > 0; i--) {
@@ -586,8 +557,6 @@ function fcShuffle(arr) {
   }
   return a;
 }
-
-// ── Download ──
 
 function fcDownloadSet(id) {
   const s = fcSets.find(x => x.id === id);
@@ -608,8 +577,6 @@ function fcDownloadSet(id) {
   a.click();
   URL.revokeObjectURL(a.href);
 }
-
-// ── Upload / Import ──
 
 function fcTriggerUpload() {
   const inp = document.getElementById('fc-file-inp');
@@ -665,8 +632,6 @@ async function fcHandleUpload(input) {
   fcRenderHome();
 }
 
-// ── Delete ──
-
 async function fcDeleteSet(id) {
   const s = fcSets.find(x => x.id === id);
   if (!s) return;
@@ -676,8 +641,6 @@ async function fcDeleteSet(id) {
   fcSets = fcSets.filter(x => x.id !== id);
   fcRenderHome();
 }
-
-// ── Keyboard shortcuts ──
 
 document.addEventListener('keydown', (e) => {
   if (document.getElementById('mode-flashcard')?.style.display === 'none') return;

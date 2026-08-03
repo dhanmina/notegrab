@@ -18,8 +18,6 @@ DEFAULT_TEMPLATE_URL = 'https://docs.google.com/document/d/1S02noSARXsm5hsHUfGO_
 DEFAULT_TEMPLATE_DOCX = Path(__file__).resolve().parent / 'assets' / 'exam_template.docx'
 _FORM_DATA_RE  = re.compile(r'var FB_PUBLIC_LOAD_DATA_ = (.*?);</script>', re.S)
 _FORM_ID_RE    = re.compile(r'/forms/d/e/([^/]+)|/forms/d/([^/]+)')
-# Splits question text at inline sub-item boundaries (2+ spaces before label).
-# Captures the label so re.split yields [stem, label1, body1, label2, body2, …].
 _ROMAN_SPLIT_RE = re.compile(
     r'\s{2,}((?:I{1,3}|IV|VI{0,3}|IX|X)|\d)\.\s+',
     re.IGNORECASE,
@@ -163,12 +161,6 @@ def _remove_template_questions(doc) -> None:
 
 
 def _strip_section_breaks(doc) -> None:
-    """Remove inline sectPr elements and multi-column body setting.
-
-    The template has a 1-col → 2-col continuous section break that causes some
-    renderers to start the question section on a new page instead of right below
-    the instructions box. Flattening to a single section fixes this.
-    """
     from docx.oxml.ns import qn as _qn
     for p in doc.paragraphs:
         pPr = p._p.find(_qn('w:pPr'))
@@ -195,24 +187,6 @@ def _load_template_doc(template_url: str | None) -> Document:
 
 
 def _apply_frame_columns(doc) -> None:
-    """Give the header a full-width text frame and switch the body to 2-column flow.
-
-    Why not a section break?
-    A continuous 1-col → 2-col section break is unreliable across renderers:
-    LibreOffice and some Word versions start the new section on a new page even
-    with type="continuous".
-
-    Why a text frame (framePr)?
-    A framePr paragraph is extracted from the normal text flow and anchored
-    absolutely on the page.  Setting hAnchor="margin", x=0, w=<full-text-width>
-    makes the frame span both columns.  wrap="notBeside" forces all remaining
-    (non-frame) paragraphs to start below the frame's bottom edge, so the 2-column
-    question content begins right below the header box — no section break needed,
-    no renderer dependency.
-
-    Background image: the body sectPr's existing headerReference is untouched, so
-    the bg image from rId11 continues to appear on every page.
-    """
     from docx.oxml import OxmlElement
     from docx.oxml.ns import qn
 
@@ -226,9 +200,8 @@ def _apply_frame_columns(doc) -> None:
             pg_mar_l = int(pgMar.get(qn('w:left'),  pg_mar_l))
             pg_mar_r = int(pgMar.get(qn('w:right'), pg_mar_r))
 
-    usable_w = pg_w - pg_mar_l - pg_mar_r  # full text-area width in twips
+    usable_w = pg_w - pg_mar_l - pg_mar_r
 
-    # Switch body to 2-column newspaper flow
     for old in body_sectPr.findall(qn('w:cols')):
         body_sectPr.remove(old)
     cols_el = OxmlElement('w:cols')
@@ -238,9 +211,6 @@ def _apply_frame_columns(doc) -> None:
     if docGrid is not None: docGrid.addprevious(cols_el)
     else:                   body_sectPr.append(cols_el)
 
-    # Apply identical framePr to every header paragraph so they form one unified
-    # full-width frame.  Consecutive paragraphs with identical framePr attributes
-    # are merged into a single frame by the renderer.
     for p in doc.paragraphs:
         pPr = p._p.find(qn('w:pPr'))
         if pPr is None:
@@ -249,23 +219,16 @@ def _apply_frame_columns(doc) -> None:
         for old_fp in pPr.findall(qn('w:framePr')):
             pPr.remove(old_fp)
         fp = OxmlElement('w:framePr')
-        fp.set(qn('w:w'),       str(usable_w))  # span full text-area width
-        fp.set(qn('w:wrap'),    'notBeside')     # nothing can sit beside the frame
-        fp.set(qn('w:vAnchor'), 'margin')        # y measured from top text margin
-        fp.set(qn('w:hAnchor'), 'margin')        # x measured from left text margin
+        fp.set(qn('w:w'),       str(usable_w))
+        fp.set(qn('w:wrap'),    'notBeside')
+        fp.set(qn('w:vAnchor'), 'margin')
+        fp.set(qn('w:hAnchor'), 'margin')
         fp.set(qn('w:x'),       '0')
         fp.set(qn('w:y'),       '0')
         pPr.insert(0, fp)
 
 
 def _split_roman_subitems(text: str) -> tuple[str, list[tuple[int, str]]]:
-    """Split a question stem that embeds Roman-numeral sub-items into (stem, [(n, text), ...]).
-
-    GForms stores sub-items inline in the question title with heavy whitespace:
-      '57. Stem :     I.        Item1    II.        Item2    III.  Item3'
-    Returns the stem and a list of (arabic_number, item_text) pairs.
-    If no Roman sub-items are found, returns (original_text, []).
-    """
     parts = _ROMAN_SPLIT_RE.split(text.strip())
     if len(parts) <= 1:
         return text.strip(), []

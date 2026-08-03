@@ -11,8 +11,6 @@ _TOKEN   = os.environ.get("GITHUB_TOKEN", "")
 _GIST_ID = os.environ.get("GIST_ID", "")
 _FILE    = "data.json"
 
-# op_lock serialises every load-modify-save cycle across all callers so a
-# concurrent flashcard write and history write never clobber each other.
 op_lock  = threading.Lock()
 _cache: dict | None = None
 
@@ -47,7 +45,6 @@ def _push(data: dict) -> None:
 
 
 def load() -> dict:
-    """Return cached data, fetching from Gist on first call. Must be called inside op_lock."""
     global _cache
     if _cache is None:
         try:
@@ -62,7 +59,6 @@ def load() -> dict:
 
 
 def save(data: dict) -> None:
-    """Update the in-memory cache and push to Gist. Must be called inside op_lock."""
     global _cache
     _cache = data
     try:
@@ -73,6 +69,5 @@ def save(data: dict) -> None:
 
 
 def warm() -> None:
-    """Pre-load the cache in a background thread so the first real request is fast."""
     with op_lock:
         load()

@@ -17,13 +17,13 @@ log = logging.getLogger(__name__)
 
 _PT_MM = 25.4 / 72
 
-_PW   = 612.1  * _PT_MM   # page width  mm
-_PH   = 936.1  * _PT_MM   # page height mm
-_MAR  = 36     * _PT_MM   # margin mm
-_TW   = 540.1  * _PT_MM   # full text width mm
-_CW   = 252.05 * _PT_MM   # single column width mm (2-col layout)
-_CG   = 36     * _PT_MM   # column gap mm
-_FH   = 7.0               # footer zone height mm
+_PW   = 612.1  * _PT_MM
+_PH   = 936.1  * _PT_MM
+_MAR  = 36     * _PT_MM
+_TW   = 540.1  * _PT_MM
+_CW   = 252.05 * _PT_MM
+_CG   = 36     * _PT_MM
+_FH   = 7.0
 
 
 def _tmp(data: bytes, suffix: str = '.png') -> str:
@@ -48,13 +48,10 @@ class _PDF(FPDF):
         self._bg_w      = bg_w
         self._bg_h      = bg_h
 
-        # column state
         self._n_cols  = 1
         self._col     = 0
         self._col_y   = [_MAR, _MAR]
         self._col_x   = [_MAR, _MAR + _CW + _CG]
-
-    # ── low-level page painters ───────────────────────────────────────────────
 
     def _paint_bg(self):
         if self._bg_path:
@@ -89,8 +86,6 @@ class _PDF(FPDF):
         self.set_text_color(128, 128, 128)
         self.cell(pgw, _FH - 1, 'Page')
 
-    # ── page lifecycle ────────────────────────────────────────────────────────
-
     def start(self, n_cols: int = 1):
         self._n_cols = n_cols
         self._new_page(first=True)
@@ -112,8 +107,6 @@ class _PDF(FPDF):
     def finish(self):
         self._paint_footer()
 
-    # ── column helpers ────────────────────────────────────────────────────────
-
     def _cx(self) -> float:
         return _MAR if self._n_cols == 1 else self._col_x[self._col]
 
@@ -127,7 +120,6 @@ class _PDF(FPDF):
         return _PH - _MAR - _FH - 1
 
     def _ensure(self, h: float):
-        """Make sure h mm fits; advance column or add page as needed."""
         if self._cy() + h <= self._col_max_y():
             return
         if self._n_cols > 1 and self._col == 0:
@@ -140,8 +132,6 @@ class _PDF(FPDF):
         if n != self._n_cols:
             self._n_cols = n
             self._col    = 0
-
-    # ── height estimation ─────────────────────────────────────────────────────
 
     def _est_h(self, text: str, font_size: float, style: str, n_cols: int) -> float:
         self.set_font('Helvetica', style, font_size)
@@ -157,8 +147,6 @@ class _PDF(FPDF):
             sw = self.get_string_width(seg)
             total += max(1, ceil(sw / w)) * lh
         return total
-
-    # ── paragraph renderer ────────────────────────────────────────────────────
 
     def write_para(self, text: str, ps: dict, ts: dict, n_cols: int):
         self._set_n_cols(n_cols)
@@ -214,8 +202,6 @@ class _PDF(FPDF):
             self._col_y[self._col if self._n_cols > 1 else 0] += sa_mm
 
 
-# ── public entry point ────────────────────────────────────────────────────────
-
 def build_pdf(url_or_id: str) -> bytes:
     log.info('PDF build started for: %s', url_or_id)
 
@@ -255,7 +241,6 @@ def build_pdf(url_or_id: str) -> bytes:
             bg_w = m['w_pt'] * _PT_MM
             bg_h = m['h_pt'] * _PT_MM
 
-        # Determine initial column count
         first_cols = 1
         if model.col_sectors:
             first_cols, _ = get_cols_at(model.col_sectors[0][0], model.col_sectors)
@@ -266,7 +251,6 @@ def build_pdf(url_or_id: str) -> bytes:
         for para_text, pep, str_start in paragraphs:
             ps = model.para_styles.get(pep, {}) if pep else {}
 
-            # Dominant style from first non-whitespace character
             ts: dict = {}
             for i, ch in enumerate(para_text):
                 if ch.strip():

@@ -63,7 +63,7 @@ signal.signal(signal.SIGTERM, _shutdown)
 _cleanup_downloads()
 atexit.register(_cleanup_downloads)
 
-CLEANUP_INTERVAL = 300  # check every 5 minutes
+CLEANUP_INTERVAL = 300
 
 def _reap_expired_jobs():
     while True:
@@ -77,7 +77,6 @@ def _reap_expired_jobs():
                     jobs.pop(job_id)
         for job_id in expired:
             logger.info("[cleanup] removing expired job %s", job_id)
-        # files are named {job_id}_* so we can match by prefix
         for name in os.listdir(DOWNLOADS_DIR):
             if name == ".gitkeep":
                 continue
