@@ -19,6 +19,10 @@ logger = logging.getLogger(__name__)
 
 PART_SIZE = 4 * 1024 * 1024
 
+CONNECT_TIMEOUT = 10
+READ_TIMEOUT = 60
+REQUEST_TIMEOUT = (CONNECT_TIMEOUT, READ_TIMEOUT)
+
 DOWNLOADS_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "downloads")
 os.makedirs(DOWNLOADS_DIR, exist_ok=True)
 
@@ -48,29 +52,33 @@ def download_part_web(job, url, cookies, thread_lock, start, end, part_filename,
         return
 
     s = requests.Session()
-    for attempt in range(5):
-        response = s.get(url, stream=True, cookies=cookies, headers=headers)
-        if response.status_code in (200, 206):
-            break
-        if response.status_code in (429, 503) and attempt < 4:
-            wait = 2 ** attempt
-            logger.warning("Part download got HTTP %s, retrying in %ss (attempt %d/5)...", response.status_code, wait, attempt + 1)
-            time.sleep(wait)
-            continue
-        logger.error("Part download failed for %s — HTTP %s", part_filename, response.status_code)
-        raise Exception(f"Failed to download part, status: {response.status_code}")
-
-    file_mode = "ab" if os.path.exists(part_filename) and os.path.getsize(part_filename) > 0 else "wb"
-    with open(part_filename, file_mode) as f:
-        for chunk in response.iter_content(chunk_size=chunk_size):
-            if not job.wait_if_paused():
-                return
-            f.write(chunk)
-            with thread_lock:
-                progress_callback(len(chunk))
-            downloaded += len(chunk)
-            if downloaded >= (end - start + 1):
+    try:
+        for attempt in range(5):
+            response = s.get(url, stream=True, cookies=cookies, headers=headers, timeout=REQUEST_TIMEOUT)
+            if response.status_code in (200, 206):
                 break
+            if response.status_code in (429, 503) and attempt < 4:
+                wait = 2 ** attempt
+                logger.warning("Part download got HTTP %s, retrying in %ss (attempt %d/5)...", response.status_code, wait, attempt + 1)
+                time.sleep(wait)
+                continue
+            logger.error("Part download failed for %s — HTTP %s", part_filename, response.status_code)
+            raise Exception(f"Failed to download part, status: {response.status_code}")
+
+        file_mode = "ab" if os.path.exists(part_filename) and os.path.getsize(part_filename) > 0 else "wb"
+        with open(part_filename, file_mode) as f:
+            for chunk in response.iter_content(chunk_size=chunk_size):
+                if not job.wait_if_paused():
+                    return
+                f.write(chunk)
+                with thread_lock:
+                    progress_callback(len(chunk))
+                downloaded += len(chunk)
+                if downloaded >= (end - start + 1):
+                    break
+    except (requests.exceptions.Timeout, requests.exceptions.ConnectionError) as e:
+        logger.warning("[job:%s] part %s stalled — no data for %ss: %s", job.job_id, part_filename, READ_TIMEOUT, e)
+        raise
 
     expected = end - start + 1
     if downloaded < expected:
@@ -203,28 +211,33 @@ def _download_file_web_single(job: Job, url, cookies, filepath, chunk_size):
         headers["Range"] = f"bytes={downloaded}-"
 
     response = None
-    for attempt in range(5):
-        response = requests.get(url, stream=True, cookies=cookies, headers=headers)
-        if response.status_code in (200, 206):
-            break
-        if response.status_code in (429, 503) and attempt < 4:
-            wait = 2 ** attempt
-            logger.warning("[job:%s] single-thread got HTTP %s, retrying in %ss (attempt %d/5)...", job.job_id, response.status_code, wait, attempt + 1)
-            time.sleep(wait)
-            continue
-        logger.error("[job:%s] single-thread download failed — HTTP %s", job.job_id, response.status_code)
-        job.fail(f"Download failed with status {response.status_code}")
-        return
+    try:
+        for attempt in range(5):
+            response = requests.get(url, stream=True, cookies=cookies, headers=headers, timeout=REQUEST_TIMEOUT)
+            if response.status_code in (200, 206):
+                break
+            if response.status_code in (429, 503) and attempt < 4:
+                wait = 2 ** attempt
+                logger.warning("[job:%s] single-thread got HTTP %s, retrying in %ss (attempt %d/5)...", job.job_id, response.status_code, wait, attempt + 1)
+                time.sleep(wait)
+                continue
+            logger.error("[job:%s] single-thread download failed — HTTP %s", job.job_id, response.status_code)
+            job.fail(f"Download failed with status {response.status_code}")
+            return
 
-    total_size = int(response.headers.get("content-length", 0)) + downloaded
-    with open(filepath, "ab" if downloaded else "wb") as f:
-        for chunk in response.iter_content(chunk_size=chunk_size):
-            if not job.wait_if_paused():
-                return
-            if chunk:
-                f.write(chunk)
-                downloaded += len(chunk)
-                job.send({"type": "progress", "downloaded": downloaded, "total": total_size})
+        total_size = int(response.headers.get("content-length", 0)) + downloaded
+        with open(filepath, "ab" if downloaded else "wb") as f:
+            for chunk in response.iter_content(chunk_size=chunk_size):
+                if not job.wait_if_paused():
+                    return
+                if chunk:
+                    f.write(chunk)
+                    downloaded += len(chunk)
+                    job.send({"type": "progress", "downloaded": downloaded, "total": total_size})
+    except (requests.exceptions.Timeout, requests.exceptions.ConnectionError) as e:
+        logger.warning("[job:%s] single-thread download stalled — no data for %ss: %s", job.job_id, READ_TIMEOUT, e)
+        job.fail(f"Download stalled: no data received for {READ_TIMEOUT}s")
+        return
 
     if total_size > 0 and downloaded < total_size:
         job.fail(f"Download incomplete: got {downloaded}/{total_size} bytes.")
@@ -343,7 +356,12 @@ def _run_gdrive(job_id, job, video_id_or_url, chunk_size, num_threads, user_id):
         if job.is_stopped:
             return
 
-        response = requests.get(drive_url)
+        try:
+            response = requests.get(drive_url, timeout=REQUEST_TIMEOUT)
+        except (requests.exceptions.Timeout, requests.exceptions.ConnectionError) as e:
+            logger.warning("[job:%s] video info fetch stalled — no response for %ss: %s", job_id, READ_TIMEOUT, e)
+            job.fail(f"Could not reach Google Drive: no response for {READ_TIMEOUT}s")
+            return
         cookies = response.cookies.get_dict()
         video, title = get_video_url(response.text)
 

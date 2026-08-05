@@ -35,7 +35,11 @@ _MIME_EXT = {
 }
 
 def get_file_info(url: str, cookies: dict, extra_headers: dict = None) -> tuple[int, str]:
-    response = requests.head(url, cookies=cookies, headers=extra_headers or {}, allow_redirects=True)
+    try:
+        response = requests.head(url, cookies=cookies, headers=extra_headers or {}, allow_redirects=True, timeout=(10, 60))
+    except (requests.exceptions.Timeout, requests.exceptions.ConnectionError) as e:
+        logger.warning("File info fetch stalled — no response for 60s: %s", e)
+        raise
     size = int(response.headers.get('content-length', 0))
     mime = response.headers.get('content-type', '').split(';')[0].strip()
     ext = _MIME_EXT.get(mime, ".mp4")
