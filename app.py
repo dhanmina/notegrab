@@ -396,7 +396,7 @@ def flashcard_parse():
     try:
         questions = extract_questions(url)
         if not questions:
-            return jsonify({"error": "No questions found. Make sure this is a valid toprank questionnaire."}), 400
+            return jsonify({"error": "No questions found. Make sure this is a valid questionnaire."}), 400
         return jsonify({"questions": questions, "total": len(questions)})
     except ValueError as e:
         return jsonify({"error": str(e)}), 400
