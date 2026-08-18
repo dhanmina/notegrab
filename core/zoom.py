@@ -520,9 +520,11 @@ def _get_zoom_info_playwright(url: str, password: str) -> tuple[str, str, dict, 
                         if _is_play_info_auth_challenge(play_info_result):
                             logger.warning(
                                 "Playwright: play/info returned auth challenge "
-                                "(componentName=%r needRedirect=%r) — password rejected or session not authed",
+                                "(componentName=%r needRedirect=%r needRecaptcha=%r) — "
+                                "password rejected or session not authed",
                                 play_info_result.get("componentName"),
                                 play_info_result.get("needRedirect"),
+                                play_info_result.get("needRecaptcha"),
                             )
                     except Exception as e:
                         logger.warning("Playwright: play/info eval failed: %s", e)
