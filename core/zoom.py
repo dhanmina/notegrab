@@ -515,8 +515,15 @@ def _get_zoom_info_playwright(url: str, password: str) -> tuple[str, str, dict, 
                         )
                         play_info_result = raw.get("result") or {}
                         title = play_info_result.get("meet", {}).get("topic") or title
-                        logger.info("Playwright: play/info status=%s keys=%d",
-                                    raw.get("status"), len(play_info_result))
+                        logger.info("Playwright: play/info status=%s keys=%s",
+                                    raw.get("status"), list(play_info_result.keys()))
+                        if _is_play_info_auth_challenge(play_info_result):
+                            logger.warning(
+                                "Playwright: play/info returned auth challenge "
+                                "(componentName=%r needRedirect=%r) — password rejected or session not authed",
+                                play_info_result.get("componentName"),
+                                play_info_result.get("needRedirect"),
+                            )
                     except Exception as e:
                         logger.warning("Playwright: play/info eval failed: %s", e)
 
